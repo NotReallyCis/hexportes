@@ -57,7 +57,13 @@ class Hex:
         return round(x), round(y)
 
     def get_hex_by_wh(w: int, h: int):
-        return Hex.all_hexs[w][h]
+        if Hex.is_wh_inside_border(w, h):
+            return Hex.all_hexs[w][h]
+        else:
+            raise ValueError("{w},{h} are not inside worlds border")
+
+    def is_wh_inside_border(w: int, h: int):
+        return (w > 0 and w < map_width) and (h > 0 and h < map_height)
 
     def draw(self):
         camera.show_on_camera(self.image, (self.x, self.y))
@@ -68,11 +74,18 @@ class Hex:
     def debug_highlight(self):
         Unit(self.w, self.h, placeholder_debug_unit, 0)
 
+    def __str__(self):
+        return str(self.w) + "," + str(self.h)
+
+    def __repr__(self):
+        return self.__str__()
+
 
 Hex.all_hexs = []
 
 
 def create_hexs_map(width: int, height: int):
+
     map_width = width
     map_height = height
 
@@ -82,7 +95,9 @@ def create_hexs_map(width: int, height: int):
             Hex.all_hexs[w].append(Hex(w, h, Hex.image_placeholder))
 
 
-create_hexs_map(30, 10)
+map_width = 30
+map_height = 10
+create_hexs_map(map_width, map_height)
 
 
 class Unit:
@@ -101,10 +116,8 @@ class Unit:
         self.image = image
         Unit.all_units.append(self)
 
-    def step_all_units():
-        for unit in Unit.all_units:
-            unit: Unit
-            unit.step()
+    def destroy(self):
+        Unit.all_units.remove(self)
 
     def draw(self):
         x, y = Hex.get_xy_by_wh(self.w, self.h)
@@ -113,41 +126,58 @@ class Unit:
     def step(self):
         self.draw()
 
-    def destroy(self):
-        Unit.all_units.remove(self)
+    def step_all_units():
+        for unit in Unit.all_units:
+            unit: Unit
+            unit.step()
 
-    def get_hexs_around(self):
+    def get_hex(self):
+        return Hex.get_hex_by_wh(self.w, self.h)
+
+    def get_possible_paths(self):
+        self.possible_paths = {}  # format: {hex:(hex_path,point_left)}
+        hex_path = [Hex.get_hex_by_wh(self.w, self.h)]
+        self.search_hex(self.get_hex(), hex_path, self.movement_point)
+        return self.possible_paths
+
+    def get_hexs_around_hex(hex: Hex):
         coordinates_around = [
-            (self.w - 1, self.h),
-            (self.w - 1, self.h - 1),
-            (self.w + 1, self.h),
-            (self.w + 1, self.h - 1),
-            (self.w, self.h + 1),
-            (self.w, self.h - 1),
+            (hex.w - 1, hex.h),
+            (hex.w - 1, hex.h - 1),
+            (hex.w + 1, hex.h),
+            (hex.w + 1, hex.h - 1),
+            (hex.w, hex.h + 1),
+            (hex.w, hex.h - 1),
         ]
         hexs_around = []
         for coordinate in coordinates_around:
-            hexs_around.append(Hex.get_hex_by_wh(coordinate[0], coordinate[1]))
-
+            if Hex.is_wh_inside_border(coordinate[0], coordinate[1]):
+                hexs_around.append(Hex.get_hex_by_wh(coordinate[0], coordinate[1]))
         return hexs_around
 
-    
-    def is_capable_going_to_hex(self, hex: Hex):
-        return self.movement_point >= hex.movement_point_needed
-    
-    def get_possible_paths(self):
-        possible_paths = {}  # format: {hex:(hex_path,point_left)}
-        for hex in self.get_hexs_around():
-            
-            if self.is_capable_going_to_hex(hex):
-                
+    def search_hex(self, hex: Hex, path: list, movement_point_left: int):
 
-        return possible_paths
+        for hex in Unit.get_hexs_around_hex(hex):
+            print(hex, "trying")
+            if self.is_capable_going_to_hex(hex, movement_point_left):
+                movement_point = movement_point_left - hex.movement_point_needed
+                self.search_hex(hex, path, movement_point)
+        self.add_to_possible_path(hex, path, movement_point_left)
+
+    def is_capable_going_to_hex(self, hex: Hex, movement_point_left: int):
+        return movement_point_left >= hex.movement_point_needed
+
+    def add_to_possible_path(self, hex: Hex, path: list, movement_point_left: int):
+        self.possible_paths[hex] = (path, movement_point_left)
 
 
+test_unit = Unit(4, 4, placeholder_test_unit, 1)
 
-test_unit = Unit(4, 4, placeholder_test_unit, 0)
-
+possible_paths = test_unit.get_possible_paths()
+print(possible_paths)
+for hex in possible_paths:
+    hex: Hex
+    hex.debug_highlight()
 
 running = True
 while running:
