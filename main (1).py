@@ -1,7 +1,6 @@
 import pygame as pg
 import math
 
-
 pg.init()
 screen = pg.display.set_mode((800, 600))
 clock = pg.time.Clock()  # Limit to 60 frames per second
@@ -9,8 +8,10 @@ fps = 60
 
 from pyaddition import *
 
-placeholder_debug_unit = pg.image.load("essentials-4xgames-tileset/tile-village.png")
-placeholder_test_unit = pg.image.load("essentials-4xgames-tileset/tile-pineforest.png")
+placeholder_test_unit1 = pg.image.load("essentials-4xgames-tileset/tile-village.png")
+placeholder_test_unit2 = pg.image.load("essentials-4xgames-tileset/tile-pineforest.png")
+placeholder_test_unit3 = pg.image.load("essentials-4xgames-tileset/tile-orchard.png")
+placeholder_test_unit4 = pg.image.load("essentials-4xgames-tileset/tile-lumberjack.png")
 
 
 def is_even(numb: int):
@@ -71,8 +72,8 @@ class Hex:
     def step(self):
         self.draw()
 
-    def debug_highlight(self):
-        Unit(self.w, self.h, placeholder_debug_unit, 0)
+    def debug_highlight(self, image: pg.Surface = placeholder_test_unit1):
+        Unit(self.w, self.h, image, 0)
 
     def __str__(self):
         return str(self.w) + "," + str(self.h)
@@ -136,8 +137,8 @@ class Unit:
 
     def get_possible_paths(self):
         self.possible_paths = {}  # format: {hex:(hex_path,point_left)}
-        hex_path = [Hex.get_hex_by_wh(self.w, self.h)]
-        self.search_hex(self.get_hex(), hex_path, self.movement_point)
+        hex_start_path = []
+        self.search_hex(self.get_hex(), hex_start_path, self.movement_point)
         return self.possible_paths
 
     def get_hexs_around_hex(hex: Hex):
@@ -155,14 +156,16 @@ class Unit:
                 hexs_around.append(Hex.get_hex_by_wh(coordinate[0], coordinate[1]))
         return hexs_around
 
-    def search_hex(self, hex: Hex, path: list, movement_point_left: int):
+    def search_hex(self, hex: Hex, path: list, movement_point: int):
+        path=path.copy()
+        path.append(hex)
+        for hex_checking in Unit.get_hexs_around_hex(hex):
+            hex_checking:Hex
+            if self.is_capable_going_to_hex(hex_checking, movement_point):
+                movement_point_for_next_search = movement_point - hex_checking.movement_point_needed
+                self.search_hex(hex_checking, path, movement_point_for_next_search)
 
-        for hex in Unit.get_hexs_around_hex(hex):
-            print(hex, "trying")
-            if self.is_capable_going_to_hex(hex, movement_point_left):
-                movement_point = movement_point_left - hex.movement_point_needed
-                self.search_hex(hex, path, movement_point)
-        self.add_to_possible_path(hex, path, movement_point_left)
+        self.add_to_possible_path(hex, path, movement_point)
 
     def is_capable_going_to_hex(self, hex: Hex, movement_point_left: int):
         return movement_point_left >= hex.movement_point_needed
@@ -171,14 +174,16 @@ class Unit:
         self.possible_paths[hex] = (path, movement_point_left)
 
 
-test_unit = Unit(4, 4, placeholder_test_unit, 1)
+test_unit = Unit(4, 4, placeholder_test_unit2, 2)
+
 
 possible_paths = test_unit.get_possible_paths()
-print(possible_paths)
+
 for hex in possible_paths:
     hex: Hex
-    hex.debug_highlight()
-
+    print(hex)
+    hex.debug_highlight(placeholder_test_unit4)
+print(possible_paths,possible_paths.__len__())
 running = True
 while running:
 
