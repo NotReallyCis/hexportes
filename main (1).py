@@ -93,7 +93,7 @@ def create_hexs_map(width: int, height: int):
     for w in range(map_width):
         Hex.all_hexs.append([])
         for h in range(map_height):
-            Hex.all_hexs[w].append(Hex(w, h, Hex.image_placeholder))
+            Hex.all_hexs[w].append(Hex(w, h, Hex.image_placeholder,1))
 
 
 map_width = 30
@@ -163,18 +163,22 @@ class Unit:
             hex_checking:Hex
             if self.is_capable_going_to_hex(hex_checking, movement_point):
                 movement_point_for_next_search = movement_point - hex_checking.movement_point_needed
-                self.search_hex(hex_checking, path, movement_point_for_next_search)
+                if movement_point_for_next_search!=0:
+                    self.search_hex(hex_checking, path, movement_point_for_next_search)
 
         self.add_to_possible_path(hex, path, movement_point)
 
-    def is_capable_going_to_hex(self, hex: Hex, movement_point_left: int):
-        return movement_point_left >= hex.movement_point_needed
+    def is_capable_going_to_hex(self, hex: Hex, movement_point: int):
+        return movement_point >= hex.movement_point_needed
 
     def add_to_possible_path(self, hex: Hex, path: list, movement_point_left: int):
-        self.possible_paths[hex] = (path, movement_point_left)
+        if hex not in self.possible_paths.keys(): 
+            self.possible_paths[hex] = (path, movement_point_left)
 
 
-test_unit = Unit(4, 4, placeholder_test_unit2, 2)
+
+
+test_unit = Unit(4, 4, placeholder_test_unit2, 3)
 
 
 possible_paths = test_unit.get_possible_paths()
