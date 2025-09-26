@@ -60,3 +60,4 @@ class camera:
             position
         ):  # check if it's in the screen (optimization)
             pygame.display.get_surface().blit(image, relative_destination)
+
