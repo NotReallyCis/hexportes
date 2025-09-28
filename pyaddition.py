@@ -4,8 +4,9 @@ import pygame
 class keyboard:
 
     pressed_keys = []
+    clicks_pressed = []
     mouse_position = pygame.Vector2(pygame.mouse.get_pos())
-
+    function_to_execute_on_click = []
     click_map = {
         0: "left click",
         1: "right click",
@@ -23,7 +24,7 @@ class keyboard:
     def step():
 
         keyboard.mouse_position = pygame.Vector2(pygame.mouse.get_pos())
-
+        global clicks_pressed
         clicks_pressed = pygame.mouse.get_pressed(5)
 
         for click_checked in range(5):
@@ -34,6 +35,16 @@ class keyboard:
 
             elif keyboard.click_map[click_checked] in keyboard.pressed_keys:
                 keyboard.pressed_keys.remove(keyboard.click_map[click_checked])
+
+        if keyboard.click_map[0] in keyboard.pressed_keys:  # if left button is pressed
+            for function in keyboard.function_to_execute_on_click:
+                function()
+
+    def execute_on_clik(function):
+        """execute automaticly the function when the left mouse button is clicked, it can't take argument nor output the result of the function"""
+        keyboard.function_to_execute_on_click.append(function)
+
+        return function
 
 
 class camera:
@@ -61,3 +72,6 @@ class camera:
         ):  # check if it's in the screen (optimization)
             pygame.display.get_surface().blit(image, relative_destination)
 
+
+def is_even(numb: int):
+    return numb % 2 == 0

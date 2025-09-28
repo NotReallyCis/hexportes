@@ -1,11 +1,13 @@
 import pygame as pg
-import math
-
+import math, socket
 
 pg.init()
-screen = pg.display.set_mode((800, 600))
-clock = pg.time.Clock()  # Limit to 60 frames per second
+screen = pg.display.set_mode((1280, 750))
+clock = pg.time.Clock()
 fps = 120
+
+import Unit as unit
+import Hex as hex
 
 from pyaddition import *
 
@@ -13,223 +15,31 @@ placeholder_test_unit1 = pg.image.load("essentials-4xgames-tileset/tile-village.
 placeholder_test_unit2 = pg.image.load("essentials-4xgames-tileset/tile-pineforest.png")
 placeholder_test_unit3 = pg.image.load("essentials-4xgames-tileset/tile-orchard.png")
 placeholder_test_unit4 = pg.image.load("essentials-4xgames-tileset/tile-lumberjack.png")
+confirm_sound_placeholder = pg.mixer.Sound("confirm_style_4_004.wav")
 
 
-def is_even(numb: int):
-    return numb % 2 == 0
-
-
-class Hex:
-
-    size = 30
-    width = round(size * math.sqrt(3))
-    height = size * 2
-
-    border_size = 2
-    image_placeholder = pg.image.load("essentials-4xgames-tileset/base_baren.png")
-    image_placeholder = pg.transform.scale(
-        image_placeholder, (size * 2 - border_size, size * 2 - border_size)
-    )
-    vertical_spacing = math.sqrt(3) * size
-    horizontal_spacing = 1.5 * size
-    all_hexs = []
-
-    def __init__(
-        self, w: int, h: int, image: pg.Surface, movement_point_needed: int = 1
-    ):
-        self.w = w
-        self.h = h
-        self.x, self.y = Hex.get_xy_by_wh(self.w, self.h)
-
-        self.size = Hex.size
-
-        self.width = Hex.width
-        self.height = Hex.height
-        self.rect = pg.Rect(self.x, self.y, self.width, self.height)
-
-        self.image = image
-
-        self.movement_point_needed = movement_point_needed
-
-    def step_to_all_hex():
-        for width in range(len(Hex.all_hexs)):
-            for hex in Hex.all_hexs[width]:
-                hex: Hex
-                hex.step()
-
-    def create_hexs_map(width: int, height: int):
-
-        map_width = width
-        map_height = height
-        for w in range(map_width):
-            Hex.all_hexs.append([])
-            for h in range(map_height):
-                Hex.all_hexs[w].append(Hex(w, h, Hex.image_placeholder))
-
-    def get_xy_by_wh(w: int, h: int):
-        x = w * Hex.horizontal_spacing
-        if is_even(w):
-            y = h * Hex.vertical_spacing
-        else:
-            y = (h * Hex.vertical_spacing) + (Hex.vertical_spacing / 2)
-        return round(x), round(y)
-
-    def get_hex_by_wh(w: int, h: int):
-        if Hex.is_wh_inside_border(w, h):
-            return Hex.all_hexs[w][h]
-        else:
-            raise ValueError("{w},{h} are not inside worlds border")
-
-    def get_hexs_around_hex(self):
-        hexs_around = []
-        if is_even(self.w):
-            wh_hexs_around = [
-                (self.w - 1, self.h),
-                (self.w - 1, self.h - 1),
-                (self.w + 1, self.h),
-                (self.w + 1, self.h - 1),  # top right
-                (self.w, self.h + 1),  # bottom
-                (self.w, self.h - 1),  # top
-            ]
-        else:
-            wh_hexs_around = [
-                (self.w - 1, self.h),
-                (self.w + 1, self.h),
-                (self.w, self.h - 1),
-                (self.w, self.h + 1),
-                (self.w + 1, self.h + 1),
-                (self.w - 1, self.h + 1),
-            ]
-
-        for wh_of_hex_around in wh_hexs_around:
-            if Hex.is_wh_inside_border(wh_of_hex_around[0], wh_of_hex_around[1]):
-
-                hexs_around.append(
-                    Hex.get_hex_by_wh(wh_of_hex_around[0], wh_of_hex_around[1])
-                )
-            # else: print("outside?",wh_of_hex_around)
-
-        return hexs_around
-
-    def is_wh_inside_border(w: int, h: int):
-        return (w >= 0 and w < map_width) and (h >= 0 and h < map_height)
-
-    def draw(self):
-        camera.show_on_camera(self.image, (self.x, self.y))
-
-    def step(self):
-        if self.is_position_in_hex_rect(keyboard.mouse_position.xy):
-
-            self.debug_highlight()
-        self.draw()
-
-    def debug_highlight(self, highlight_image: pg.Surface = placeholder_test_unit2):
-        Unit(self.w, self.h, highlight_image, 0)
-
-    def is_position_in_hex_rect(self, position: tuple[int, int] | pg.Vector2):
-        """not precise way to do it"""
-        return self.rect.collidepoint(position[0], position[1])
-
-    def __str__(self):
-        return str(self.w) + "," + str(self.h)
-
-    def __repr__(self):
-        return self.__str__()
-
-
-Hex.all_hexs = []
-
-map_width = 15
-map_height = 10
-Hex.create_hexs_map(map_width, map_height)
-
-
-class Unit:
-    all_units = []
-
-    def __init__(
-        self,
-        w: int,
-        h: int,
-        image: pg.Surface,
-        movement_point: int,
-    ):
-        self.w = w
-        self.h = h
-        self.movement_point = movement_point
-        self.image = image
-        Unit.all_units.append(self)
-
-    def destroy(self):
-        Unit.all_units.remove(self)
-
-    def draw(self):
-        x, y = Hex.get_xy_by_wh(self.w, self.h)
-        camera.show_on_camera(self.image, (x, y))
-
-    def step(self):
-        self.draw()
-
-    def step_all_units():
-        for unit in Unit.all_units:
-            unit: Unit
-            unit.step()
-
-    def get_hex(self):
-        return Hex.get_hex_by_wh(self.w, self.h)
-
-    def get_possible_paths(self):
-        self.possible_paths = {}  # tile_to_go:(path,movement_point_left)
-        start_path = []
-        self.search_hex(self.get_hex(), self.movement_point, start_path)
-        return self.possible_paths
-
-    def search_hex(self, hex: Hex, movement_point_possessed: int, path: list):
-        path = path.copy()
-        path.append(hex)
-
-        for hex_around in hex.get_hexs_around_hex():
-            hex_around: Hex
-            movement_point_needed = hex_around.movement_point_needed
-
-            if (
-                movement_point_possessed >= movement_point_needed
-                and self.is_path_from_node_have_not_been_calculated(
-                    hex_around, movement_point_possessed - movement_point_needed
-                )
-            ):
-                self.search_hex(
-                    hex_around,
-                    movement_point_possessed - movement_point_needed,
-                    path,
-                )
-
-        self.add_to_path(hex, path, movement_point_possessed)
-        global number_of_calculation
-        number_of_calculation += 1
-
-    def add_to_path(self, hex: Hex, path: list, movement_point: int):
-        self.possible_paths[hex] = (path, movement_point)
-
-    def is_path_from_node_have_not_been_calculated(self, hex: Hex, movement_point: int):
-        return (hex not in self.possible_paths.keys()) or (
-            self.possible_paths[hex][1] < movement_point
-        )
+hex.Hex.create_hexs_map()
 
 
 def debug_path_finding():
-    test_unit = Unit(4, 4, placeholder_test_unit2, 4)
-    number_of_calculation = 0
-    possible_paths = test_unit.get_possible_paths()
+    test_unit = unit.Unit(4, 4, placeholder_test_unit2, 4)
+    test_unit.get_possible_paths()
     print(
-        "number_of_calculation:",
-        number_of_calculation,
         "number_of_case:",
-        possible_paths.__len__(),
+        test_unit.possible_paths.__len__(),
     )
-    for hex in possible_paths:
-        hex: Hex
+    for hex in test_unit.possible_paths:
+        hex: hex.Hex
         hex.debug_highlight(placeholder_test_unit4)
+    return 1
+
+
+test_unit = Unit.Unit(4, 4, placeholder_test_unit2, 4)
+
+
+@keyboard.execute_on_clik
+def executed_on_clik():
+    Hex.hex_cursor_is_on.clicked()
 
 
 running = True
