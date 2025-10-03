@@ -1,6 +1,6 @@
 import pygame as pg
-import math
-import Unit
+import math, json, unit_type
+import unit as Unit
 from pyaddition import keyboard, camera, is_even
 
 placeholder_hex_highlight = pg.image.load(
@@ -19,7 +19,7 @@ class Hex:
     map_width = 15
     map_height = 10
 
-    image_placeholder = pg.image.load("image.png")
+    image_placeholder = pg.image.load("hex_placeholder.png")
     image_placeholder = pg.transform.scale(image_placeholder, (width, height))
 
     image_placeholder_cursor_on_hex = image_placeholder
@@ -52,8 +52,8 @@ class Hex:
         self.unit_on_hex: Unit.Unit | None = None
 
     def step_to_all_hex():
-        for width in range(len(Hex.all_hexs)):
-            for hex in Hex.all_hexs[width]:
+        for w in range(len(Hex.all_hexs)):
+            for hex in Hex.all_hexs[w]:
                 hex: Hex
                 hex.step()
 
@@ -147,10 +147,41 @@ class Hex:
         )  # really precised
 
     def __str__(self):
-        return str(self.w) + "," + str(self.h)
+        if self.unit_on_hex == None:
+            return str((self.w, self.h))
+        else:
+            return str((self.w, self.h, self.unit_on_hex))
 
     def __repr__(self):
         return self.__str__()
 
-    def get_full_representation(self):
-        return self.__str__(), self.unit_on_hex
+    def __str__without_wh(self):
+        return self.unit_on_hex.__str__()
+
+    def get_all_hexs__str__():
+        output = []
+        for w in range(len(Hex.all_hexs)):
+            output.append([])
+            for hex in Hex.all_hexs[w]:
+                hex: Hex
+                output[w].append(hex.__str__without_wh())
+        return output
+
+    def load_all_hexs__str__(all_hexs__str__: list[list]):
+        for w in range(len(all_hexs__str__)):
+            for h, hex__str__ in enumerate(all_hexs__str__[w]):
+                Hex.load_hex__str__(w, h, hex__str__)
+
+    def load_hex__str__(w: int, h: int, string_to_load: str):
+        hex: Hex = Hex.get_hex_by_wh(w, h)
+
+        if string_to_load == "" or string_to_load == "None":
+            if hex.unit_on_hex != None:
+                hex.unit_on_hex.destroy()
+
+        elif string_to_load in unit_type.unit_type.keys():
+            print("unit", string_to_load, w, h)
+            hex.unit_on_hex = Unit.Unit(w, h, string_to_load)
+
+        else:
+            print(string_to_load, w, h, "wtf")

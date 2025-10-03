@@ -1,5 +1,9 @@
 import socket, threading, json
 
+intro_length = 20
+# the intro length is the number of number that is sent at start of message to give the length of the message
+# it should be the same in the server and in the client
+
 
 class server_class:
     def __init__(self):
@@ -20,71 +24,66 @@ class server_class:
 
     def create_client(self, client_socket: socket.socket, client_address):
         thread_of_discussion = threading.Thread(
-            target=client_class,
+            target=Client,
             args=(
                 client_socket,
                 client_address,
-            ),  # should be a tuple 'cause it only accepts iterable not tuple
+            ),  # should be a tuple 'cause it only accepts iterable
         )
-        thread_of_discussion.start()  # not run
+        thread_of_discussion.start()
+        # not ".run" because ".start" have to be called at least once per thread
 
 
-all_client_connected = {}
+class Client:
 
-
-class type_of_message:  # important to put that in a class for case match statements
-    PLAYER_INFO = "player info"
-
-
-class client_class:
+    all_clients = []
+    all_map_info: str | None = None
 
     def __init__(self, client_socket: socket.socket, client_address: str):
         self.socket = client_socket
-        self.is_client_connected_to_server = True
+        self.is_connected_to_server = True
         self.address = client_address
+
         print(self.address, "connected to server")
+        Client.all_clients.append(self)
 
-        message = self.receive_from_client()  # first message to initialize everything
-        self.load_message(message)
-
-        self.id = self.info["id"]
-        all_client_connected[self.id] = self
-
-        while self.is_client_connected_to_server:  # constant loop
+        while self.is_connected_to_server:  # constant loop
             self.step()
 
-    def __str__(self):
-        return json.dumps(self.info)
+    def step(self):
 
-    def __repr__(self):
-        return self.__str__()
+        message = self.receive_from_client()
 
-    def receive_from_client(self, intro_length: int = 4):
-        """the intro length is the number of number that is received at start of message to give the length of the message \n
-        it should be the same in the server and in the client"""
-        length_of_message = self.socket.recv(intro_length)
-        length_of_message = length_of_message.decode("utf-8")
+        if message is None:
+            self.disconnect()
+            return None  # important to return something or the rest will run one more time before stopping
 
-        if length_of_message == "":  # 'cause it's disconnected if it receive that
+        print("the message from:", self.address, " ,is:", message)
+        if message != "":
+            Client.all_map_info = message
+            self.send_new_infos_to_all_others_client()
+
+    def send_new_infos_to_all_others_client(self):
+        for client in Client.all_clients:
+            client: Client
+
+            if client != self:
+                print(client, "!=?", self)
+                print(Client.all_map_info, "sent to", client)
+                client.send(Client.all_map_info)
+
+    def receive_from_client(self):
+        try:
+            length_of_message = self.socket.recv(intro_length).decode("utf-8")
+        except ConnectionResetError:
             return None
+        if length_of_message == "":  # 'cause it's disconnected if it receive that
+            return None  # returning None automaticly disconnect
 
         length_of_message = int(length_of_message)
 
-        output = self.socket.recv(length_of_message)
-
-        output = output.decode("utf-8")
-
+        output = self.socket.recv(length_of_message).decode("utf-8")
         return output
-
-    def load_message(self, message: str):
-
-        dict_message = json.loads(message)
-        dict_message: dict
-
-        match dict_message["type"]:  # to add more type (shoot bullet etc)
-            case type_of_message.PLAYER_INFO:
-                self.info = dict_message
-        return self.info
 
     def get_0_before_int(self, number: int | str, length_expected: int) -> str:
         """get 0 before the int so it correspond to a certain length (eg: input 1,4 it will output 0001)"""
@@ -101,37 +100,26 @@ class client_class:
 
         return number
 
-    def send_to_client(self, info: str, intro_length: int = 4):
-        """the intro length is the number of number that is sent at start of message to give the length of the message \n
-        it should be the same in the server and in the client"""
+    def send(self, *info):
+        info = str(*info)
 
         output_to_send = self.get_0_before_int(info.__len__(), intro_length) + info
 
         self.socket.send(output_to_send.encode("utf-8"))
 
-    def step(self):
-        print(all_client_connected)
-
-        message = self.receive_from_client()
-
-        if message is None:
-            self.disconnect()
-            return "disconnected"
-            # important to return something or the reste will run once before stopping
-
-        self.load_message(message)
-
-        message_to_send = all_client_connected.copy()
-
-        self.send_to_client(str(message_to_send))
-
     def disconnect(self):
+        Client.all_clients.remove(self)
         print(self.address, "disconnected :<")
         self.socket.shutdown(1)
         self.socket.close()
 
-        self.is_client_connected_to_server = False
-        all_client_connected.pop(self.id)
+        self.is_connected_to_server = False
+
+    def __str__(self):
+        return str(self.address)
+
+    def __repr__(self):
+        return self.__str__()
 
 
 server = server_class()
