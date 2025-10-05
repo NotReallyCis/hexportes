@@ -1,6 +1,6 @@
 import pygame as pg
 import math, json, unit_type
-import unit as Unit
+import Unit
 from pyaddition import keyboard, camera, is_even
 
 placeholder_hex_highlight = pg.image.load(
@@ -155,8 +155,11 @@ class Hex:
     def __repr__(self):
         return self.__str__()
 
-    def __str__without_wh(self):
-        return self.unit_on_hex.__str__()
+    def get_representation(self):
+        if self.unit_on_hex != None:
+            return self.unit_on_hex.__tuple__()
+        else:
+            return None
 
     def get_all_hexs__str__():
         output = []
@@ -164,7 +167,7 @@ class Hex:
             output.append([])
             for hex in Hex.all_hexs[w]:
                 hex: Hex
-                output[w].append(hex.__str__without_wh())
+                output[w].append(hex.get_representation())
         return output
 
     def load_all_hexs__str__(all_hexs__str__: list[list]):
@@ -172,16 +175,25 @@ class Hex:
             for h, hex__str__ in enumerate(all_hexs__str__[w]):
                 Hex.load_hex__str__(w, h, hex__str__)
 
-    def load_hex__str__(w: int, h: int, string_to_load: str):
+    def load_hex__str__(w: int, h: int, string_to_load: tuple | str):
         hex: Hex = Hex.get_hex_by_wh(w, h)
 
-        if string_to_load == "" or string_to_load == "None":
+        unit_name: str = string_to_load[0]
+        unt_team: int = string_to_load[1]
+
+        if string_to_load == "None":
             if hex.unit_on_hex != None:
                 hex.unit_on_hex.destroy()
 
-        elif string_to_load in unit_type.unit_type.keys():
-            print("unit", string_to_load, w, h)
-            hex.unit_on_hex = Unit.Unit(w, h, string_to_load)
+        elif unit_name in unit_type.unit_type.keys():
+            print("unit", unit_name, unt_team, w, h)
+            hex.unit_on_hex = Unit.Unit(w, h, string_to_load, unt_team)
 
         else:
-            print(string_to_load, w, h, "wtf")
+            raise ValueError(
+                string_to_load,
+                type(string_to_load),
+                "in hex",
+                hex,
+                "has not been understood,most likely due that it is incorrect",
+            )

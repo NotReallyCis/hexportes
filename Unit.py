@@ -44,6 +44,9 @@ class Unit:
     def __repr__(self):
         return self.__str__()
 
+    def __tuple__(self):
+        return (self.name, self.team)
+
     def draw(self):
         x, y = Hex.Hex.get_xy_by_wh(self.w, self.h)
         camera.show_on_camera(self.image, (x, y))

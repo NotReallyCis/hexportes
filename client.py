@@ -1,4 +1,5 @@
-import socket, random
+import socket, random, json
+import pyaddition as pyadd
 
 intro_length = 20
 # the intro length is the number of number that is sent at start of message to give the length of the message
@@ -21,11 +22,19 @@ class client_class:
         self, port: int, addr: str = socket.gethostbyname(socket.gethostname())
     ):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((addr, port))
+        try:
+            s.connect((addr, port))
+        except ConnectionRefusedError:
+            raise ConnectionRefusedError(
+                "Coudln't connect to the server, most likely due to the server not being launched"
+            )
         return s
 
     def __init__(self):
-        self.port = 5000 + random.randint(1, 1000)
+
+        self.port = 5000 + random.randint(
+            1, 1000
+        )  # it's random so maybe it can be the same as someone else?
         self.address = socket.gethostbyname(socket.gethostname())
 
         print("port=", self.port, "addr=", self.address)
@@ -34,6 +43,15 @@ class client_class:
 
         self.socket = self.connect(server.port, server.address)
         print("connected to", server.port, ",", server.address)
+
+        self.get_intro_data_from_server()
+
+    def get_intro_data_from_server(self):
+        intro_data = self.receive_from_server()
+
+        intro_data: tuple = json.loads(intro_data)
+
+        self.id = intro_data[0]
 
     def get_0_before_int(self, number: int | str, length_expected: int) -> str:
         """get 0 before the int so it correspond to a certain length (eg: input 1,4 it will output 0001)"""

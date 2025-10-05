@@ -1,11 +1,25 @@
 import pygame
 
 
-class keyboard:
+def is_even(numb: int):
+    return numb % 2 == 0
 
+
+def str_to_bool(string_to_convert: str):
+    return (
+        string_to_convert == "True"
+        or string_to_convert == "true"
+        or string_to_convert == "'true'"
+        or string_to_convert == '"true"'
+        or string_to_convert == "'True'"
+        or string_to_convert == '"True"'
+    )
+
+
+class keyboard:
     pressed_keys = []
     clicks_pressed = []
-    mouse_position = pygame.Vector2(pygame.mouse.get_pos())
+    mouse_position = pygame.Vector2(0, 0)
     functions_to_execute_on_click = []
     click_map = {
         0: "left click",
@@ -15,8 +29,24 @@ class keyboard:
         4: "fifth click",  # the button on the side that's far to the hand (fifth button)
     }
 
-    clicks_pressed = pygame.mouse.get_pressed(5)
+    clicks_pressed = (False, False, False, False, False)
     is_left_clicked_last_tick = False
+
+    def init():
+        keyboard.pressed_keys = []
+        keyboard.clicks_pressed = []
+        keyboard.mouse_position = pygame.Vector2(0, 0)
+        keyboard.functions_to_execute_on_click = []
+        keyboard.click_map = {
+            0: "left click",
+            1: "right click",
+            2: "middle click",
+            3: "fourth click",  # the button on the side that's near the hand (fourth button)
+            4: "fifth click",  # the button on the side that's far to the hand (fifth button)
+        }
+
+        keyboard.clicks_pressed = pygame.mouse.get_pressed(5)
+        keyboard.is_left_clicked_last_tick = False
 
     def key_press(key):
         keyboard.pressed_keys.append(pygame.key.name(key))
@@ -73,10 +103,13 @@ class keyboard:
 
 
 class camera:
+    rect: pygame.Rect = None
 
-    rect = pygame.display.get_surface().get_rect()
+    screen: pygame.Surface = None
 
-    screen = pygame.Surface((rect.width, rect.height))
+    def init():
+        camera.rect = pygame.display.get_surface().get_rect()
+        camera.screen = pygame.Surface((camera.rect.width, camera.rect.height))
 
     def reset_screen():  # must be called
         camera.screen.fill("black")
@@ -96,10 +129,6 @@ class camera:
             position
         ):  # check if it's in the screen (optimization)
             pygame.display.get_surface().blit(image, relative_destination)
-
-
-def is_even(numb: int):
-    return numb % 2 == 0
 
 
 class Button:
@@ -153,3 +182,8 @@ class Button:
 def step_to_all_module():
     keyboard.step()
     Button.step_all()
+
+
+def init_all_module():
+    camera.init()
+    keyboard.init()
