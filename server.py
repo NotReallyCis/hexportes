@@ -1,4 +1,4 @@
-import socket, threading, json
+import socket, threading, json, color_teams_map
 import Hex
 
 intro_length = 20
@@ -18,9 +18,6 @@ class server_class:
 
     def loop_to_accept(self):
         (client_socket, client_address) = self.socket.accept()
-        print(
-            "connected to", client_address[1]
-        )  # [1] to only get the ip, idk what's the second number
         self.create_client(client_socket, client_address)
 
     def create_client(self, client_socket: socket.socket, client_address):
@@ -38,7 +35,8 @@ class server_class:
 class Client:
 
     all_clients = {}
-    all_map_info: str | None = None
+    Hex.Hex.create_hexs_map()
+    all_map_info: str = json.dumps(Hex.Hex.get_all_hexs__str__())
     max_id_given = 0
 
     def __init__(self, client_socket: socket.socket, client_address: str):
@@ -46,15 +44,12 @@ class Client:
         self.is_connected_to_server = True
         self.address = client_address
 
-        print(self.address, "connected to server")
-
         self.id = Client.max_id_given
         Client.max_id_given += 1  # so two client can't have the same id, though the number become pretty large
-        print("id of addres:", self.address, "is:", self.id)
 
         Client.all_clients[self.id] = self
         self.send_intro_data()
-
+        print(self.__str__(), "connected to server")
         if Client.all_clients.__len__() == 1:  # aka it's the first player
             self.send_map_infos()
 
@@ -74,19 +69,19 @@ class Client:
             self.disconnect()
             return None  # important to return something or the rest will run one more time before stopping
 
-        print("the message from:", self.address, " ,is:", message)
+        print("the message from:", self.__str__(), " ,is:", message)
 
         if message != "":
             Client.all_map_info = message
-            self.send_map_infos()
+            self.get_next_client().send_map_infos()
 
     def send_map_infos(self):
-        print(Client.all_map_info, "sent to", self)
+
         self.send(Client.all_map_info)
 
-    def get_next_client(self):
+    def get_next_client(self) -> "Client":
         all_clients_list = list(Client.all_clients.keys())
-        position_of_self = all_clients_list.index(self)
+        position_of_self = all_clients_list.index(self.id)
         if (
             position_of_self != all_clients_list.__len__() - 1
         ):  # if it's not the last player
@@ -130,10 +125,12 @@ class Client:
         output_to_send = self.get_0_before_int(info.__len__(), intro_length) + info
 
         self.socket.send(output_to_send.encode("utf-8"))
+        print(info, "sent to", self.__str__())
 
     def disconnect(self):
+
         Client.all_clients.pop(self.id)
-        print(self.address, "disconnected :<")
+        print(self.__str__(), "disconnected :<")
         self.socket.shutdown(1)
         self.socket.close()
 

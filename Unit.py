@@ -1,13 +1,22 @@
 from pyaddition import camera
 import pygame as pg
-import Hex, unit_type
+import unit_type, color_teams_map
 
-import main
+
+class Hex:
+    """this is only a class to not depends on hex_file.py for type hints"""
 
 
 class Unit:
     all_units = []
     unit_selected = None
+    color_remaining = color_teams_map.all_colors
+
+    def init(team: int):
+        Unit.team_of_main = team
+
+        Unit.map_teams_to_color = {Unit.team_of_main: Unit.color_remaining[0]}
+        Unit.color_remaining.pop(0)
 
     def __init__(
         self,
@@ -22,55 +31,75 @@ class Unit:
         self.name = name
 
         self.team = team
-
         self.movement_point = unit_type.unit_type[name][unit_type.MOVEMENT_POINT]
         self.default_movement_point = self.movement_point
+        self.set_color()
+        self.set_image()
 
-        self.image = unit_type.unit_type[name][unit_type.IMAGE]
-
-        Unit.all_units.append(self)
         self.get_hex().unit_on_hex = self
 
         self.get_possible_paths()
         self.is_selected = False
 
+        Unit.all_units.append(self)
+
     def destroy(self):
+
         self.get_hex().unit_on_hex = None
         Unit.all_units.remove(self)
 
+    def set_image(self):
+        image_name = unit_type.unit_type[self.name][unit_type.IMAGE]
+        self.image = pg.image.load(
+            "unit_with_team_color/" + self.color + "_" + image_name
+        )
+
+    def set_color(self):
+        if self.team in Unit.map_teams_to_color.keys():
+            self.color = Unit.map_teams_to_color[self.team]
+        else:
+            Unit.map_teams_to_color[self.team] = Unit.color_remaining[0]
+            Unit.color_remaining.pop(0)
+            self.color = Unit.map_teams_to_color[self.team]
+
     def __str__(self):
-        return str((self.name, self.team))
+        return str((self.name, self.team_of_main))
 
     def __repr__(self):
         return self.__str__()
 
     def __tuple__(self):
-        return (self.name, self.team)
+        return (self.name, self.team_of_main)
 
     def draw(self):
-        x, y = Hex.Hex.get_xy_by_wh(self.w, self.h)
+        from Hex import Hex
+
+        x, y = Hex.get_xy_by_wh(self.w, self.h)
         camera.show_on_camera(self.image, (x, y))
 
     def step(self):
         self.draw()
 
     def step_all_units():
+
         for unit in Unit.all_units:
             unit: Unit
             unit.step()
 
-    def on_end_of_turn():
+    def destroy_all_units():
         for unit in Unit.all_units:
             unit: Unit
+            unit.destroy()
 
-            unit.movement_point = unit.default_movement_point
-            unit.get_possible_paths()
+    def get_hex(self) -> Hex:
+        from Hex import Hex
 
-    def get_hex(self) -> Hex.Hex:
-        return Hex.Hex.get_hex_by_wh(self.w, self.h)
+        return Hex.get_hex_by_wh(self.w, self.h)
 
     def move_to(self, w: int, h: int):
-        hex_to_move: Hex.Hex = Hex.Hex.get_hex_by_wh(w, h)
+        from Hex import Hex
+
+        hex_to_move: Hex = Hex.get_hex_by_wh(w, h)
 
         if hex_to_move not in self.possible_paths.keys():
             print(
@@ -92,9 +121,8 @@ class Unit:
             self.get_possible_paths()
 
     def clicked(self):
-        if not self.is_selected and self.team == main.team:
+        if not self.is_selected and self.team_of_main == Unit.team_of_main:
             self.select()
-            print(self.get_hex())
 
     def select(self):
         if not self.is_selected:
@@ -111,12 +139,14 @@ class Unit:
         start_path = []
         self.search_hex(self.get_hex(), self.movement_point, start_path)
 
-    def search_hex(self, hex: Hex.Hex, movement_point_possessed: int, path: list):
+    def search_hex(self, hex: "Hex", movement_point_possessed: int, path: list):
+        from Hex import Hex
+
         path = path.copy()
         path.append(hex)
 
         for hex_around in hex.get_hexs_around_hex():
-            hex_around: Hex.Hex
+            hex_around: Hex
             movement_point_needed = hex_around.movement_point_needed
 
             if (

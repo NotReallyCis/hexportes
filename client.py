@@ -3,33 +3,31 @@ import pyaddition as pyadd
 
 intro_length = 20
 # the intro length is the number of number that is sent at start of message to give the length of the message
-# it should be the same in the server and in the client
+# it should be the same in the Server and in the client
 
 
-class server_class:
+class Server:
 
     address = socket.gethostbyname(socket.gethostname())  # it's host so it's own ip
     port = 5000
 
 
-server = server_class()
+class Client:
+    port = 5000 + random.randint(
+        1, 1000
+    )  # it's random so maybe it can be the same as someone else?
+    address = socket.gethostbyname(socket.gethostname())
 
-
-class client_class:
     def init():
-        client_class.port = 5000 + random.randint(
-            1, 1000
-        )  # it's random so maybe it can be the same as someone else?
-        client_class.address = socket.gethostbyname(socket.gethostname())
 
-        print("port=", client_class.port, "addr=", client_class.address)
+        print("port=", Client.port, "addr=", Client.address)
 
-        print("triying connect to", server.port, ",", server.address)
+        print("triying connect to", Server.port, ",", Server.address)
 
-        client_class.socket = client_class.connect(server.port, server.address)
-        print("connected to", server.port, ",", server.address)
+        Client.socket = Client.connect(Server.port, Server.address)
+        print("connected to", Server.port, ",", Server.address)
 
-        client_class.get_intro_data_from_server()
+        Client.get_intro_data_from_server()
 
     def connect(port: int, addr: str = socket.gethostbyname(socket.gethostname())):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -37,16 +35,15 @@ class client_class:
             s.connect((addr, port))
         except ConnectionRefusedError:
             raise ConnectionRefusedError(
-                "Coudln't connect to the server, most likely due to the server not being launched"
+                "Coudln't connect to the Server, most likely due to the Server not being launched"
             )
         return s
 
-    def get_intro_data_from_server(self):
-        intro_data = client_class.receive_from_server()
+    def get_intro_data_from_server():
+        intro_data = Client.receive_message()
 
         intro_data: tuple = json.loads(intro_data)
-
-        client_class.id = intro_data[0]
+        Client.id = intro_data[0]
 
     def get_0_before_int(number: int | str, length_expected: int) -> str:
         """get 0 before the int so it correspond to a certain length (eg: input 1,4 it will output 0001)"""
@@ -63,21 +60,19 @@ class client_class:
 
         return number
 
-    def send_to_server(info: str, intro_length: int = 20):
+    def send(info: str, intro_length: int = 20):
         """the intro length is the number of number that is sent at start of message to give the length of the message \n
-        it should be the same in the server and in the client"""
+        it should be the same in the Server and in the client"""
         info = str(info)
-        output_to_send = (
-            client_class.get_0_before_int(info.__len__(), intro_length) + info
-        )
+        output_to_send = Client.get_0_before_int(info.__len__(), intro_length) + info
 
-        client_class.socket.send(output_to_send.encode("utf-8"))
+        Client.socket.send(output_to_send.encode("utf-8"))
 
-    def receive_from_server(intro_length: int = 20):
+    def receive_message(intro_length: int = 20):
         """the intro length is the number of number that is sent at start of message to give the length of the message \n
-        it should be the same in the server and in the client"""
+        it should be the same in the Server and in the client"""
 
-        length_of_message = client_class.socket.recv(intro_length)
+        length_of_message = Client.socket.recv(intro_length)
         length_of_message = length_of_message.decode("utf-8")
 
         if length_of_message == "":  # 'cause it's disconnected if it received that
@@ -85,13 +80,18 @@ class client_class:
 
         length_of_message = int(length_of_message)
 
-        output = client_class.socket.recv(length_of_message)
+        output = Client.socket.recv(length_of_message)
 
         output = output.decode("utf-8")
 
         return output
 
-    def disconnect(self):
+    def disconnect():
         print("disconnected :<")
-        client_class.socket.shutdown(1)
-        client_class.socket.close()
+        Client.socket.shutdown(1)
+        Client.socket.close()
+
+
+def init_all():
+
+    Client.init()

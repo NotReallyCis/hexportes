@@ -7,12 +7,12 @@ TEST_UNIT = "first_test"
 
 # test = {
 #     MOVEMENT_POINT: 0,
-#     IMAGE: pg.image.load(""),
+#     IMAGE: ".png"
 # }
 
 unit_type = {
     TEST_UNIT: {
         MOVEMENT_POINT: 4,
-        IMAGE: pg.image.load("essentials-4xgames-tileset/tile-fish.png"),
-    }
+        IMAGE: "tile-village.png",
+    },
 }

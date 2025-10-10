@@ -31,32 +31,36 @@ class keyboard:
 
     clicks_pressed = (False, False, False, False, False)
     is_left_clicked_last_tick = False
+    key_map_execute_on_step = {}
+    key_map_execute_once = {}
 
-    def init():
-        keyboard.pressed_keys = []
-        keyboard.clicks_pressed = []
-        keyboard.mouse_position = pygame.Vector2(0, 0)
-        keyboard.functions_to_execute_on_click = []
-        keyboard.click_map = {
-            0: "left click",
-            1: "right click",
-            2: "middle click",
-            3: "fourth click",  # the button on the side that's near the hand (fourth button)
-            4: "fifth click",  # the button on the side that's far to the hand (fifth button)
-        }
+    def key_press(key_number: int):
+        key = pygame.key.name(key_number)
+        keyboard.pressed_keys.append(key)
 
-        keyboard.clicks_pressed = pygame.mouse.get_pressed(5)
-        keyboard.is_left_clicked_last_tick = False
+        if key in keyboard.key_map_execute_once.keys():
 
-    def key_press(key):
-        keyboard.pressed_keys.append(pygame.key.name(key))
+            function_to_execute: function = keyboard.key_map_execute_once[key][0]
+            function_to_execute()
 
     def key_release(key):
         keyboard.pressed_keys.remove(pygame.key.name(key))
 
+        if key in keyboard.key_map_execute_once.keys():
+            function_to_execute_when_released: function = (
+                keyboard.key_map_execute_on_step[key][1]
+            )
+            function_to_execute_when_released()
+
+    def is_key_pressed(key: str):
+        return key in keyboard.pressed_keys
+
     def step():
 
-        keyboard.mouse_position = pygame.Vector2(pygame.mouse.get_pos())
+        keyboard.mouse_position = pygame.Vector2(
+            pygame.mouse.get_pos()[0] + camera.rect.x,
+            pygame.mouse.get_pos()[1] + camera.rect.y,
+        )
         keyboard.clicks_pressed = pygame.mouse.get_pressed(5)
 
         for click_currently_checking in range(5):
@@ -77,10 +81,21 @@ class keyboard:
 
         keyboard.execute_all_function_if_click()
 
-        if keyboard.click_map[0] in keyboard.pressed_keys:
-            keyboard.is_left_clicked_last_tick = True
-        else:
-            keyboard.is_left_clicked_last_tick = False
+        keyboard.is_left_clicked_last_tick = (
+            keyboard.click_map[0] in keyboard.pressed_keys
+        )
+
+        for key in keyboard.key_map_execute_on_step:
+            if key in keyboard.key_press:
+                function_to_execute_when_not_pressed: function = (
+                    keyboard.key_map_execute_on_step[key][0]
+                )
+                function_to_execute_when_not_pressed()
+            else:
+                function_to_execute_when_not_pressed: function = (
+                    keyboard.key_map_execute_on_step[key][1]
+                )
+                function_to_execute_when_not_pressed()
 
     class execute_on_clik:
         """execute automaticly the function when the left mouse button is clicked, it can't take argument nor output the result of the function"""
@@ -93,7 +108,6 @@ class keyboard:
             function(*args, **kwds)
 
     def execute_all_function_if_click():
-
         if (
             keyboard.click_map[0] in keyboard.pressed_keys
             and not keyboard.is_left_clicked_last_tick
@@ -101,47 +115,79 @@ class keyboard:
             for function in keyboard.functions_to_execute_on_click:
                 function()
 
+    def set_new_key_map(
+        key: str,
+        only_execute_function_one_time: bool,
+        function_to_execute_when_press: "function",
+        function_to_execute_when_not_pressed: "function" = None,
+    ):
+        if only_execute_function_one_time:
+            keyboard.key_map_execute_once[key] = (
+                function_to_execute_when_press,
+                function_to_execute_when_not_pressed,
+            )
+        else:
+            keyboard.key_map_execute_on_step[key] = (
+                function_to_execute_when_press,
+                function_to_execute_when_not_pressed,
+            )
+
 
 class camera:
     rect: pygame.Rect = None
-
     screen: pygame.Surface = None
+    movement = pygame.Vector2((0, 0))
 
     def init():
         camera.rect = pygame.display.get_surface().get_rect()
-        camera.screen = pygame.Surface((camera.rect.width, camera.rect.height))
 
-    def reset_screen():  # must be called
-        camera.screen.fill("black")
+    def step():
+        camera.apply_movement()
 
-    def show_on_camera(image: pygame.Surface, position: pygame.Rect | tuple[int, int]):
+    def apply_movement():
+        camera.rect.x += camera.movement.x
+        camera.rect.y += camera.movement.y
+
+    def show_on_camera(
+        image: pygame.Surface,
+        position: pygame.Rect | tuple[int, int],
+        is_blocked_on_screen: bool = False,
+    ):
         if isinstance(position, tuple):
             position = image.get_rect(x=position[0], y=position[1])
 
-        relative_destination = pygame.Rect(
-            position.x - camera.rect.x,
-            position.y - camera.rect.y,
-            position.width,
-            position.height,
-        )
+        if is_blocked_on_screen:  # it's globally a blit image
+            pygame.display.get_surface().blit(image, position)
+        else:
+            relative_destination = pygame.Rect(
+                position.x - camera.rect.x,
+                position.y - camera.rect.y,
+                position.width,
+                position.height,
+            )
 
-        if camera.rect.colliderect(
-            position
-        ):  # check if it's in the screen (optimization)
-            pygame.display.get_surface().blit(image, relative_destination)
+            if camera.rect.colliderect(
+                position
+            ):  # check if it's in the screen (optimization)
+                pygame.display.get_surface().blit(image, relative_destination)
 
 
 class Button:
     all_buttons = []
+    true_mouse_pos = (0, 0)
+
+    def init():
+        Button.true_mouse_pos = pygame.mouse.get_pos()
 
     def __init__(
         self,
         image: pygame.Surface,
-        function_to_execute_on_click,
+        function_to_execute_on_click: "function",
         x: int = 0,
         y: int = 0,
         width: int = 100,
         height: int = 100,
+        *args_to_function
     ):
         self.x, self.y = x, y
         self.width, self.height = width, height
@@ -152,6 +198,7 @@ class Button:
         self.rect = self.mask.get_rect()
 
         self.function = function_to_execute_on_click
+        self.args = args_to_function
 
         Button.all_buttons.append(self)
 
@@ -162,6 +209,7 @@ class Button:
 
     def step(self):
         self.draw()
+        camera.true_mouse_pos = pygame.mouse.get_pos()
 
     def step_all():
         for button in Button.all_buttons:
@@ -170,20 +218,24 @@ class Button:
 
     def draw(self):
 
-        camera.show_on_camera(self.image, (self.x, self.y))
+        camera.show_on_camera(self.image, (self.x, self.y), True)
 
     def on_click(self):
-        if self.rect.collidepoint(keyboard.mouse_position) and self.mask.get_at(
-            keyboard.mouse_position
+        if self.rect.collidepoint(camera.true_mouse_pos) and self.mask.get_at(
+            camera.true_mouse_pos
         ):  # if clicked the button (the rect checking is just for optimization)
-            self.function()
+            if self.args == None:
+                self.function()
+            else:
+                self.function(*self.args)
 
 
 def step_to_all_module():
     keyboard.step()
     Button.step_all()
+    camera.step()
 
 
 def init_all_module():
+    Button.init()
     camera.init()
-    keyboard.init()

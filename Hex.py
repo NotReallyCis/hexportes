@@ -1,6 +1,6 @@
 import pygame as pg
 import math, json, unit_type
-import Unit
+from Unit import Unit
 from pyaddition import keyboard, camera, is_even
 
 placeholder_hex_highlight = pg.image.load(
@@ -49,7 +49,7 @@ class Hex:
 
         self.is_cursor_on_hex = False
 
-        self.unit_on_hex: Unit.Unit | None = None
+        self.unit_on_hex: Unit | None = None
 
     def step_to_all_hex():
         for w in range(len(Hex.all_hexs)):
@@ -75,19 +75,22 @@ class Hex:
             )
 
     def clicked(self):
+
         if self.unit_on_hex != None:
+
             self.unit_on_hex.clicked()
 
-        elif Unit.Unit.unit_selected != None:
-            Unit.Unit.unit_selected.move_to(self.w, self.h)
-            Unit.Unit.unit_selected.is_selected = False
-            Unit.Unit.unit_selected = None
+        elif Unit.unit_selected != None:
+            Unit.unit_selected.move_to(self.w, self.h)
+            Unit.unit_selected.is_selected = False
+            Unit.unit_selected = None
 
     def create_hexs_map():
         for w in range(Hex.map_width):
             Hex.all_hexs.append([])
             for h in range(Hex.map_height):
                 Hex.all_hexs[w].append(Hex(w, h, Hex.image_placeholder))
+        return Hex.all_hexs[w]
 
     def get_xy_by_wh(w: int, h: int):
         x = w * Hex.horizontal_spacing
@@ -99,7 +102,9 @@ class Hex:
 
     def get_hex_by_wh(w: int, h: int):
         if Hex.is_wh_inside_border(w, h):
-            return Hex.all_hexs[w][h]
+
+            output: Hex = Hex.all_hexs[w][h]
+            return output
         else:
             raise ValueError("{w},{h} are not inside worlds border")
 
@@ -137,7 +142,7 @@ class Hex:
         return (w >= 0 and w < Hex.map_width) and (h >= 0 and h < Hex.map_height)
 
     def debug_highlight(self, highlight_image: pg.Surface = placeholder_hex_highlight):
-        Unit.Unit(self.w, self.h, highlight_image, 0)
+        Unit(self.w, self.h, highlight_image, 0)
 
     def is_position_in_hex(self, position: tuple[int, int] | pg.Vector2):
         return self.rect.collidepoint(  # check for collision with the rect so it's optimized
@@ -175,25 +180,26 @@ class Hex:
             for h, hex__str__ in enumerate(all_hexs__str__[w]):
                 Hex.load_hex__str__(w, h, hex__str__)
 
-    def load_hex__str__(w: int, h: int, string_to_load: tuple | str):
+    def load_hex__str__(w: int, h: int, string_to_load: tuple | None):
         hex: Hex = Hex.get_hex_by_wh(w, h)
 
-        unit_name: str = string_to_load[0]
-        unt_team: int = string_to_load[1]
-
-        if string_to_load == "None":
+        if string_to_load is None:
             if hex.unit_on_hex != None:
+
                 hex.unit_on_hex.destroy()
 
-        elif unit_name in unit_type.unit_type.keys():
-            print("unit", unit_name, unt_team, w, h)
-            hex.unit_on_hex = Unit.Unit(w, h, string_to_load, unt_team)
-
         else:
-            raise ValueError(
-                string_to_load,
-                type(string_to_load),
-                "in hex",
-                hex,
-                "has not been understood,most likely due that it is incorrect",
-            )
+            unit_name: str = string_to_load[0]
+            unit_team: int = string_to_load[1]
+
+            if unit_name in unit_type.unit_type.keys():
+                hex.unit_on_hex = Unit(w, h, unit_name, unit_team)
+
+            else:
+                raise ValueError(
+                    string_to_load,
+                    type(string_to_load),
+                    "in hex",
+                    hex,
+                    "has not been understood,most likely due that it is incorrect",
+                )
