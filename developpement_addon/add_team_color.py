@@ -1,4 +1,4 @@
-import os, time,color_teams_map
+import os, time, data
 import pygame as pg
 
 """
@@ -21,8 +21,6 @@ reset_folder()
 directory_str = "unit"
 directory = os.fsencode(directory_str)
 
-import 
-
 
 def get_surface_from_file(file: bytes):
     filename = os.fsdecode(file)
@@ -33,7 +31,7 @@ def save_surface(surface: pg.Surface, color: tuple[int, int, int], name: str):
 
     pg.image.save(
         surface,
-        output_directory_str + "/" + color_teams_map.color_of_teams[color] + "_" + name,
+        output_directory_str + "/" + data.color_of_teams[color] + "_" + name,
     )
 
 
@@ -54,7 +52,7 @@ for file in os.listdir(directory):
         surface,
         (surface.get_width() + border_size * 2, surface.get_height() + border_size * 2),
     )
-    for color in color_teams_map.color_of_teams:
+    for color in data.color_of_teams:
         fill_only_visible_part(output_surface, color)
         output_surface.blit(surface, (border_size, border_size))
         save_surface(output_surface, color, filename)

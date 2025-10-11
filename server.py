@@ -1,5 +1,5 @@
-import socket, threading, json, color_teams_map
-import Hex
+import socket, threading, json, data
+
 
 intro_length = 20
 # the intro length is the number of number that is sent at start of message to give the length of the message
@@ -35,8 +35,8 @@ class server_class:
 class Client:
 
     all_clients = {}
-    Hex.Hex.create_hexs_map()
-    all_map_info: str = json.dumps(Hex.Hex.get_all_hexs__str__())
+
+    all_map_info: str = data.empty_map_str
     max_id_given = 0
 
     def __init__(self, client_socket: socket.socket, client_address: str):

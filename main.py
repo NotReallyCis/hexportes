@@ -82,9 +82,9 @@ if __name__ == "__main__":
     Unit.Unit.init(team)
     Hex.create_hexs_map()
 
-    placeholder_next_turn_button = pg.image.load(
-        "Complete_UI_Essential_Pack_Free/Complete_UI_Essential_Pack_Free/01_Flat_Theme/Sprites/UI_Flat_IconCheck01a.png"
-    )
+    import data
+
+    placeholder_next_turn_button = data.next_turn_button
     Button(
         placeholder_next_turn_button,
         start_of_turn,
@@ -95,19 +95,16 @@ if __name__ == "__main__":
         True,
     )
 
-    import key_map
+    data.create_function_on_command("end_of_turn", start_of_turn)
 
-    key_map.create_function_on_command("end_of_turn", start_of_turn)
-
-    placeholder_image_waiting = pg.image.load("placeholder_image_waiting.png")
+    placeholder_image_waiting = data.background_waiting_image
     pg.transform.scale(placeholder_image_waiting, screen.get_size())
 
     running = True
 
     start_of_turn(False)  # it gets the map of the server at the start
-    import unit_type
 
-    Unit.Unit(5, 5, unit_type.TEST_UNIT, team)
+    Unit.Unit(5, 5, data.TEST_UNIT, team)
     while running:
         Hex.step_to_all_hex()  # better to put that before button step is called
         Unit.Unit.step_all_units()

@@ -1,6 +1,6 @@
 from pyaddition import camera
 import pygame as pg
-import unit_type, color_teams_map
+import data
 
 
 class Hex:
@@ -10,7 +10,8 @@ class Hex:
 class Unit:
     all_units = []
     unit_selected = None
-    color_remaining = color_teams_map.all_colors
+    color_remaining = data.all_colors
+    selected_bad_unit_sound = data.selected_bad_unit_sound
 
     def init(team: int):
         Unit.team_of_main = team
@@ -31,7 +32,7 @@ class Unit:
         self.name = name
 
         self.team = team
-        self.movement_point = unit_type.unit_type[name][unit_type.MOVEMENT_POINT]
+        self.movement_point = data.unit_type[name][data.MOVEMENT_POINT]
         self.default_movement_point = self.movement_point
         self.set_color()
         self.set_image()
@@ -49,10 +50,7 @@ class Unit:
         Unit.all_units.remove(self)
 
     def set_image(self):
-        image_name = unit_type.unit_type[self.name][unit_type.IMAGE]
-        self.image = pg.image.load(
-            "unit_with_team_color/" + self.color + "_" + image_name
-        )
+        self.image = data.get_unit_image_by_unit_and_color(self.name, self.color)
 
     def set_color(self):
         if self.team in Unit.map_teams_to_color.keys():
@@ -63,13 +61,13 @@ class Unit:
             self.color = Unit.map_teams_to_color[self.team]
 
     def __str__(self):
-        return str((self.name, self.team_of_main))
+        return str((self.name, self.team))
 
     def __repr__(self):
         return self.__str__()
 
     def __tuple__(self):
-        return (self.name, self.team_of_main)
+        return (self.name, self.team)
 
     def draw(self):
         from Hex import Hex
@@ -121,8 +119,10 @@ class Unit:
             self.get_possible_paths()
 
     def clicked(self):
-        if not self.is_selected and self.team_of_main == Unit.team_of_main:
+        if not self.is_selected and self.team == Unit.team_of_main:
             self.select()
+        else:
+            Unit.selected_bad_unit_sound.play()
 
     def select(self):
         if not self.is_selected:

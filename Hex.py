@@ -1,11 +1,7 @@
 import pygame as pg
-import math, json, unit_type
+import math, data
 from Unit import Unit
 from pyaddition import keyboard, camera, is_even
-
-placeholder_hex_highlight = pg.image.load(
-    "essentials-4xgames-tileset/tile-farm-sown.png"
-)
 
 
 class Hex:
@@ -19,12 +15,11 @@ class Hex:
     map_width = 15
     map_height = 10
 
-    image_placeholder = pg.image.load("hex_placeholder.png")
-    image_placeholder = pg.transform.scale(image_placeholder, (width, height))
+    hex_image = pg.transform.scale(data.hex_image, (width, height))
 
-    image_placeholder_cursor_on_hex = image_placeholder
+    image_placeholder_cursor_on_hex = hex_image
 
-    mask = pg.mask.from_surface(image_placeholder, 1)
+    mask = pg.mask.from_surface(hex_image, 1)
 
     all_hexs = []
 
@@ -89,7 +84,7 @@ class Hex:
         for w in range(Hex.map_width):
             Hex.all_hexs.append([])
             for h in range(Hex.map_height):
-                Hex.all_hexs[w].append(Hex(w, h, Hex.image_placeholder))
+                Hex.all_hexs[w].append(Hex(w, h, Hex.hex_image))
         return Hex.all_hexs[w]
 
     def get_xy_by_wh(w: int, h: int):
@@ -141,7 +136,7 @@ class Hex:
     def is_wh_inside_border(w: int, h: int):
         return (w >= 0 and w < Hex.map_width) and (h >= 0 and h < Hex.map_height)
 
-    def debug_highlight(self, highlight_image: pg.Surface = placeholder_hex_highlight):
+    def debug_highlight(self, highlight_image: pg.Surface = data.hex_highlight):
         Unit(self.w, self.h, highlight_image, 0)
 
     def is_position_in_hex(self, position: tuple[int, int] | pg.Vector2):
@@ -192,7 +187,7 @@ class Hex:
             unit_name: str = string_to_load[0]
             unit_team: int = string_to_load[1]
 
-            if unit_name in unit_type.unit_type.keys():
+            if unit_name in data.unit_type.keys():
                 hex.unit_on_hex = Unit(w, h, unit_name, unit_team)
 
             else:
