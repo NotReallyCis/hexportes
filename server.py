@@ -6,21 +6,21 @@ intro_length = 20
 # it should be the same in the server and in the client
 
 
-class server_class:
-    def __init__(self):
-        self.address = socket.gethostbyname(socket.gethostname())  # it's the host
-        self.port = 5000  # could be changed
+class Server:
 
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.bind((self.address, self.port))
-        self.socket.listen(1)  # 1 is the number of people to listen
-        print("listening on", self.port, ",", self.address)
+    address = socket.gethostbyname(socket.gethostname())  # it's the host
+    port = 5000  # could be changed
 
-    def loop_to_accept(self):
-        (client_socket, client_address) = self.socket.accept()
-        self.create_client(client_socket, client_address)
+    socket_of_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    socket_of_server.bind((address, port))
+    socket_of_server.listen(1)  # 1 is the number of people to listen
+    print("listening on", port, ",", address)
 
-    def create_client(self, client_socket: socket.socket, client_address):
+    def loop_to_accept():
+        (client_socket, client_address) = Server.socket_of_server.accept()
+        Server.create_client(client_socket, client_address)
+
+    def create_client(client_socket: socket.socket, client_address):
         thread_of_discussion = threading.Thread(
             target=Client,
             args=(
@@ -31,23 +31,34 @@ class server_class:
         thread_of_discussion.start()
         # not ".run" because ".start" have to be called at least once per thread
 
+    def destroy_disconnected_units(team_disconnected: int):
+        map_info = json.loads(Client.all_map_info)
+        for x, line in enumerate(map_info):
+            for y, unit in enumerate(line):
+                if unit != None:
+                    unit_team = unit[1]
+                    if unit_team == team_disconnected:
+                        map_info[x][y] = None
+
+        Client.all_map_info = json.dumps(map_info)
+
 
 class Client:
 
     all_clients = {}
 
     all_map_info: str = data.empty_map_str
-    max_id_given = 0
+    max_team_given = 0
 
     def __init__(self, client_socket: socket.socket, client_address: str):
         self.socket = client_socket
         self.is_connected_to_server = True
         self.address = client_address
 
-        self.id = Client.max_id_given
-        Client.max_id_given += 1  # so two client can't have the same id, though the number become pretty large
+        self.team = Client.max_team_given
+        Client.max_team_given += 1  # so two client can't have the same id, though the number become pretty large
 
-        Client.all_clients[self.id] = self
+        Client.all_clients[self.team] = self
         self.send_intro_data()
         print(self.__str__(), "connected to server")
         if Client.all_clients.__len__() == 1:  # aka it's the first player
@@ -57,8 +68,7 @@ class Client:
             self.step()
 
     def send_intro_data(self):
-        intro_data = (self.id,)
-
+        intro_data = (self.team,)
         self.send(json.dumps(intro_data))
 
     def step(self):
@@ -76,12 +86,11 @@ class Client:
             self.get_next_client().send_map_infos()
 
     def send_map_infos(self):
-
         self.send(Client.all_map_info)
 
     def get_next_client(self) -> "Client":
         all_clients_list = list(Client.all_clients.keys())
-        position_of_self = all_clients_list.index(self.id)
+        position_of_self = all_clients_list.index(self.team)
         if (
             position_of_self != all_clients_list.__len__() - 1
         ):  # if it's not the last player
@@ -128,8 +137,8 @@ class Client:
         print(info, "sent to", self.__str__())
 
     def disconnect(self):
-
-        Client.all_clients.pop(self.id)
+        Server.destroy_disconnected_units(self.team)
+        Client.all_clients.pop(self.team)
         print(self.__str__(), "disconnected :<")
         self.socket.shutdown(1)
         self.socket.close()
@@ -137,13 +146,11 @@ class Client:
         self.is_connected_to_server = False
 
     def __str__(self):
-        return str((self.address, self.id))
+        return str((self.address, self.team))
 
     def __repr__(self):
         return self.__str__()
 
 
-server = server_class()
-
 while True:
-    server.loop_to_accept()
+    Server.loop_to_accept()

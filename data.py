@@ -100,6 +100,10 @@ next_turn_button = pg.image.load(
 
 background_waiting_image = pg.image.load("assets/image/placeholder_image_waiting.png")
 
+possible_paths_marker_image_for_unit = pg.image.load(
+    "assets/essentials-4xgames-tileset/base_watery.png"
+)
+
 ### map ###
 
 empty_map_str = open("developpement_addon\map.txt", "r").read()

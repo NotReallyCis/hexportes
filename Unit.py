@@ -10,8 +10,10 @@ class Hex:
 class Unit:
     all_units = []
     unit_selected = None
+
     color_remaining = data.all_colors
     selected_bad_unit_sound = data.selected_bad_unit_sound
+    possible_paths_marker_image = data.possible_paths_marker_image_for_unit
 
     def init(team: int):
         Unit.team_of_main = team
@@ -44,11 +46,6 @@ class Unit:
 
         Unit.all_units.append(self)
 
-    def destroy(self):
-
-        self.get_hex().unit_on_hex = None
-        Unit.all_units.remove(self)
-
     def set_image(self):
         self.image = data.get_unit_image_by_unit_and_color(self.name, self.color)
 
@@ -60,6 +57,16 @@ class Unit:
             Unit.color_remaining.pop(0)
             self.color = Unit.map_teams_to_color[self.team]
 
+    def destroy(self):
+
+        self.get_hex().unit_on_hex = None
+        Unit.all_units.remove(self)
+
+    def destroy_all_units():
+        for unit in Unit.all_units:
+            unit: Unit
+            unit.destroy()
+
     def __str__(self):
         return str((self.name, self.team))
 
@@ -69,14 +76,10 @@ class Unit:
     def __tuple__(self):
         return (self.name, self.team)
 
-    def draw(self):
-        from Hex import Hex
-
-        x, y = Hex.get_xy_by_wh(self.w, self.h)
-        camera.show_on_camera(self.image, (x, y))
-
     def step(self):
         self.draw()
+        if self.is_selected:
+            self.draw_possible_paths()
 
     def step_all_units():
 
@@ -84,12 +87,20 @@ class Unit:
             unit: Unit
             unit.step()
 
-    def destroy_all_units():
-        for unit in Unit.all_units:
-            unit: Unit
-            unit.destroy()
+    def draw(self):
+        from Hex import Hex
 
-    def get_hex(self) -> Hex:
+        x, y = Hex.get_xy_by_wh(self.w, self.h)
+        camera.show_on_camera(self.image, (x, y))
+
+    def draw_possible_paths(self):
+        from Hex import Hex
+
+        for hex in self.possible_paths:
+            hex: Hex
+            camera.show_on_camera(Unit.possible_paths_marker_image, (hex.x, hex.y))
+
+    def get_hex(self) -> "Hex":
         from Hex import Hex
 
         return Hex.get_hex_by_wh(self.w, self.h)
@@ -167,6 +178,7 @@ class Unit:
         self.possible_paths[hex] = (path, movement_point)
 
     def is_path_from_node_have_not_been_calculated(self, hex: Hex, movement_point: int):
+        """it checks if the coordinate has been calculated arlready with a better path"""
         return (hex not in self.possible_paths.keys()) or (
             self.possible_paths[hex][1] < movement_point
         )
