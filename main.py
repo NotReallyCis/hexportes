@@ -21,11 +21,13 @@ if __name__ == "__main__":
 
     import camera_movement
 
-    @keyboard.execute_on_clik
+    @keyboard.execute_on_click
     def executed_on_clik():
-        Hex.hex_cursor_is_on.clicked()
+        if not Button.is_position_in_zone_covered(*keyboard.mouse_position.xy):
+            Hex.hex_cursor_is_on.clicked()
 
     def start_of_turn(is_sending_data_to_server: bool = True):
+        data.click_stat.stat = data.click_stat.SELECT_UNIT
 
         global has_receive_message_from_server
         has_receive_message_from_server = False
@@ -54,7 +56,7 @@ if __name__ == "__main__":
             send_map_info_to_server()
 
         Unit.Unit.destroy_all_units()  # it must be between the send and the receive
-
+        Hex.on_end_of_turn()
         discusion_with_server_thread = threading.Thread(
             target=receive_map_info_from_server
         )
@@ -84,9 +86,10 @@ if __name__ == "__main__":
 
     import data
 
-    placeholder_next_turn_button = data.next_turn_button
+    data.click_stat.stat = data.click_stat.SELECT_UNIT  # the stat at start
+
     Button(
-        placeholder_next_turn_button,
+        data.next_turn_button,
         start_of_turn,
         0,
         0,
@@ -95,7 +98,31 @@ if __name__ == "__main__":
         True,
     )
 
-    data.create_function_on_command("end_of_turn", start_of_turn)
+    def set_click_stat_at_attack():
+        data.click_stat.stat = data.click_stat.SELECT_UNIT_ATTACK
+
+    attack_button = Button(
+        data.attack_button,
+        set_click_stat_at_attack,
+        50,
+        0,
+        50,
+        50,
+    )
+
+    def set_click_stat_at_go():
+        data.click_stat.stat = data.click_stat.SELECT_UNIT_DESTINATION
+
+    go_button = Button(
+        data.go_button,
+        set_click_stat_at_go,
+        100,
+        0,
+        50,
+        50,
+    )
+
+    data.create_function_on_key_map("end_of_turn", start_of_turn)
 
     placeholder_image_waiting = data.background_waiting_image
     pg.transform.scale(placeholder_image_waiting, screen.get_size())
@@ -104,13 +131,26 @@ if __name__ == "__main__":
 
     start_of_turn(False)  # it gets the map of the server at the start
 
-    Unit.Unit(5, 5, data.TEST_UNIT, team)
+    import unit_type
+
+    Unit.Unit(5, 5, unit_type.TEST_UNIT, team)
     while running:
         Hex.step_to_all_hex()  # better to put that before button step is called
         Unit.Unit.step_all_units()
 
+        for line in Hex.all_hexs:
+            for hex in line:
+                hex: Hex
+
         step_to_all_module()
         camera_movement.step()
+
+        if Unit.Unit.unit_selected == None:
+            attack_button.is_alive = False
+            go_button.is_alive = False
+        else:
+            attack_button.is_alive = True
+            go_button.is_alive = True
 
         for event in pg.event.get():
             if event.type == pg.QUIT:

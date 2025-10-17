@@ -1,7 +1,7 @@
 from data import is_command_pressed
 from pyaddition import keyboard, camera
 
-camera_speed = 4
+camera_speed = 6
 
 
 def horizontal_camera_movement(direction: "int[-1, 0, 1]"):

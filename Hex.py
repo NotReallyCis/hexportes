@@ -1,7 +1,7 @@
 import pygame as pg
-import math, data
+import math, data, unit_type
 from Unit import Unit
-from pyaddition import keyboard, camera, is_even
+from pyaddition import keyboard, camera, Button, is_even
 
 
 class Hex:
@@ -32,6 +32,8 @@ class Hex:
         self.h = h
         self.x, self.y = Hex.get_xy_by_wh(self.w, self.h)
 
+        self.type = data.hex_type
+
         self.size = Hex.size
 
         self.width = Hex.width
@@ -42,9 +44,17 @@ class Hex:
 
         self.movement_point_needed = movement_point_needed
 
-        self.is_cursor_on_hex = False
-
         self.unit_on_hex: Unit | None = None
+
+        self.stat = []
+
+        self.is_visible = True
+
+    def on_end_of_turn():
+        for line in Hex.all_hexs:
+            for hex in line:
+                hex: Hex
+                hex.is_visible = False
 
     def step_to_all_hex():
         for w in range(len(Hex.all_hexs)):
@@ -54,31 +64,51 @@ class Hex:
 
     def step(self):
         if self.is_position_in_hex(keyboard.mouse_position.xy):
-            self.is_cursor_on_hex = True
             Hex.hex_cursor_is_on = self
 
-        else:
-            self.is_cursor_on_hex = False
-
         self.draw()
+        self.stat = []  # reset each time so it only last one tick
 
     def draw(self):
-        camera.show_on_camera(self.image, (self.x, self.y))
-        if self.is_cursor_on_hex:
-            camera.show_on_camera(
-                self.image_placeholder_cursor_on_hex, (self.x, self.y)
-            )
+
+        is_cursor_on_self = Hex.hex_cursor_is_on == self
+        camera.show(
+            data.hex_type.get_hex_image_from_stat(
+                self.stat, is_cursor_on_self, self.is_visible
+            ),
+            (self.x, self.y),
+        )
+
+    def is_position_in_hex(self, position: tuple[int, int] | pg.Vector2):
+        return (
+            self.rect.collidepoint(
+                position[0], position[1]
+            )  # check for collision with the rect so it's optimized
+            and (
+                Hex.mask.get_at((position[0] - self.x, position[1] - self.y))
+            )  # pixel perfect
+            and (not Button.is_position_in_zone_covered(position[0], position[1]))
+        )
 
     def clicked(self):
+        match data.click_stat.stat:
+            case data.click_stat.SELECT_UNIT:
+                if self.unit_on_hex != None:
+                    self.unit_on_hex.select()
 
-        if self.unit_on_hex != None:
+            case data.click_stat.SELECT_UNIT_DESTINATION:
+                if self.unit_on_hex == None:
+                    Unit.unit_selected.move_to(self.w, self.h)
+                    if (
+                        Unit.unit_selected != None
+                    ):  # unit unselect when a he want to go to an unreachable destination
+                        if Unit.unit_selected.movement_point == 0:
+                            Unit.unit_selected.unselect()
 
-            self.unit_on_hex.clicked()
-
-        elif Unit.unit_selected != None:
-            Unit.unit_selected.move_to(self.w, self.h)
-            Unit.unit_selected.is_selected = False
-            Unit.unit_selected = None
+            case data.click_stat.SELECT_UNIT_ATTACK:
+                if self.unit_on_hex != None:
+                    Unit.unit_selected.attack(self.unit_on_hex)
+                    data.click_stat.stat = data.click_stat.SELECT_UNIT_DESTINATION
 
     def create_hexs_map():
         for w in range(Hex.map_width):
@@ -95,7 +125,7 @@ class Hex:
             y = (h * Hex.vertical_spacing) + (Hex.vertical_spacing / 2)
         return round(x), round(y)
 
-    def get_hex_by_wh(w: int, h: int):
+    def get_hex_by_wh(w: int, h: int) -> "Hex":
         if Hex.is_wh_inside_border(w, h):
 
             output: Hex = Hex.all_hexs[w][h]
@@ -139,13 +169,6 @@ class Hex:
     def debug_highlight(self, highlight_image: pg.Surface = data.hex_highlight):
         Unit(self.w, self.h, highlight_image, 0)
 
-    def is_position_in_hex(self, position: tuple[int, int] | pg.Vector2):
-        return self.rect.collidepoint(  # check for collision with the rect so it's optimized
-            position[0], position[1]
-        ) and (
-            Hex.mask.get_at((position[0] - self.x, position[1] - self.y))
-        )  # really precised
-
     def __str__(self):
         if self.unit_on_hex == None:
             return str((self.w, self.h))
@@ -186,9 +209,20 @@ class Hex:
         else:
             unit_name: str = string_to_load[0]
             unit_team: int = string_to_load[1]
+            unit_pv: int = string_to_load[2]
+            unit_ammo: int = string_to_load[3]
+            unit_fuel: int = string_to_load[4]
 
-            if unit_name in data.unit_type.keys():
-                hex.unit_on_hex = Unit(w, h, unit_name, unit_team)
+            if unit_name in unit_type.unit_type.keys():
+                hex.unit_on_hex = Unit(
+                    w,
+                    h,
+                    unit_name,
+                    unit_team,
+                    unit_pv,
+                    unit_ammo,
+                    unit_fuel,
+                )
 
             else:
                 raise ValueError(

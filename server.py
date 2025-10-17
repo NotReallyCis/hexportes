@@ -13,7 +13,7 @@ class Server:
 
     socket_of_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     socket_of_server.bind((address, port))
-    socket_of_server.listen(1)  # 1 is the number of people to listen
+    socket_of_server.listen(1)  
     print("listening on", port, ",", address)
 
     def loop_to_accept():

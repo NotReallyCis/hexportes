@@ -17,14 +17,14 @@ class Client:
         1, 1000
     )  # it's random so maybe it can be the same as someone else?
     address = socket.gethostbyname(socket.gethostname())
+    socket_to_server: socket.socket = None
 
     def init():
 
         print("port=", Client.port, "addr=", Client.address)
 
         print("triying connect to", Server.port, ",", Server.address)
-
-        Client.socket = Client.connect(Server.port, Server.address)
+        Client.socket_to_server = Client.connect(Server.port, Server.address)
         print("connected to", Server.port, ",", Server.address)
 
         Client.get_intro_data_from_server()
@@ -66,13 +66,13 @@ class Client:
         info = str(info)
         output_to_send = Client.get_0_before_int(info.__len__(), intro_length) + info
 
-        Client.socket.send(output_to_send.encode("utf-8"))
+        Client.socket_to_server.send(output_to_send.encode("utf-8"))
 
     def receive_message(intro_length: int = 20):
         """the intro length is the number of number that is sent at start of message to give the length of the message \n
         it should be the same in the Server and in the client"""
 
-        length_of_message = Client.socket.recv(intro_length)
+        length_of_message = Client.socket_to_server.recv(intro_length)
         length_of_message = length_of_message.decode("utf-8")
 
         if length_of_message == "":  # 'cause it's disconnected if it received that
@@ -80,7 +80,7 @@ class Client:
 
         length_of_message = int(length_of_message)
 
-        output = Client.socket.recv(length_of_message)
+        output = Client.socket_to_server.recv(length_of_message)
 
         output = output.decode("utf-8")
 
@@ -88,8 +88,8 @@ class Client:
 
     def disconnect():
         print("disconnected :<")
-        Client.socket.shutdown(1)
-        Client.socket.close()
+        Client.socket_to_server.shutdown(1)
+        Client.socket_to_server.close()
 
 
 def init_all():

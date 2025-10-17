@@ -1,12 +1,16 @@
-import os, time, data
+import sys
+
+sys.path.append("C:/Users/bauma/Documents/GitHub/hexportes")
+
+import os, data
 import pygame as pg
 
 """
-this file is for converting the unit folder to a unit_with_team_color folder
-the unit_with_team_color folder image's border is depending on the color
+this file is for converting the assets/unit folder to a assets/unit_with_team_color folder
 """
 
-output_directory_str = "unit_with_team_color"
+directory_str = "assets/unit"
+output_directory_str = "assets/unit_with_team_color"
 
 
 def reset_folder(folder: str = output_directory_str):
@@ -18,7 +22,6 @@ def reset_folder(folder: str = output_directory_str):
 
 reset_folder()
 
-directory_str = "unit"
 directory = os.fsencode(directory_str)
 
 

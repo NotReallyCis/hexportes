@@ -5,21 +5,15 @@ def is_even(numb: int):
     return numb % 2 == 0
 
 
-def str_to_bool(string_to_convert: str):
-    return (
-        string_to_convert == "True"
-        or string_to_convert == "true"
-        or string_to_convert == "'true'"
-        or string_to_convert == '"true"'
-        or string_to_convert == "'True'"
-        or string_to_convert == '"True"'
-    )
+def get_percentage(number: float, total: float):
+    return number * 100 / total
 
 
 class keyboard:
     pressed_keys = []
     clicks_pressed = []
     mouse_position = pygame.Vector2(0, 0)
+    true_mouse_position = pygame.Vector2(0, 0)
     functions_to_execute_on_click = []
     click_map = {
         0: "left click",
@@ -61,6 +55,10 @@ class keyboard:
             pygame.mouse.get_pos()[0] + camera.rect.x,
             pygame.mouse.get_pos()[1] + camera.rect.y,
         )
+        keyboard.true_mouse_position = pygame.Vector2(
+            pygame.mouse.get_pos()[0],
+            pygame.mouse.get_pos()[1],
+        )
         keyboard.clicks_pressed = pygame.mouse.get_pressed(5)
 
         for click_currently_checking in range(5):
@@ -97,7 +95,7 @@ class keyboard:
                 )
                 function_to_execute_when_not_pressed()
 
-    class execute_on_clik:
+    class execute_on_click:
         """execute automaticly the function when the left mouse button is clicked, it can't take argument nor output the result of the function"""
 
         def __init__(self, function):
@@ -148,7 +146,7 @@ class camera:
         camera.rect.x += camera.movement.x
         camera.rect.y += camera.movement.y
 
-    def show_on_camera(
+    def show(
         image: pygame.Surface,
         position: pygame.Rect | tuple[int, int],
         is_blocked_on_screen: bool = False,
@@ -156,7 +154,7 @@ class camera:
         if isinstance(position, tuple):
             position = image.get_rect(x=position[0], y=position[1])
 
-        if is_blocked_on_screen:  # it's globally a blit image
+        if is_blocked_on_screen:  # it's globally a pg.blit
             pygame.display.get_surface().blit(image, position)
         else:
             relative_destination = pygame.Rect(
@@ -195,39 +193,104 @@ class Button:
         self.image = pygame.transform.scale(image, (self.width, self.height))
 
         self.mask = pygame.mask.from_surface(self.image, 1)
-        self.rect = self.mask.get_rect()
+        self.rect = self.mask.get_rect(x=self.x, y=self.y)
 
         self.function = function_to_execute_on_click
         self.args = args_to_function
 
-        Button.all_buttons.append(self)
-
         keyboard.functions_to_execute_on_click.append((self.on_click))
+        self.is_alive = True
+        Button.all_buttons.append(self)
 
     def destroy(self):
         Button.all_buttons.remove(self)
 
     def step(self):
         self.draw()
-        camera.true_mouse_pos = pygame.mouse.get_pos()
 
     def step_all():
         for button in Button.all_buttons:
             button: Button
-            button.step()
+            if button.is_alive:
+                button.step()
 
     def draw(self):
 
-        camera.show_on_camera(self.image, (self.x, self.y), True)
+        camera.show(self.image, (self.x, self.y), True)
 
     def on_click(self):
-        if self.rect.collidepoint(camera.true_mouse_pos) and self.mask.get_at(
-            camera.true_mouse_pos
+        if (
+            self.is_alive
+            and self.rect.collidepoint(keyboard.true_mouse_position)
+            and self.mask.get_at(
+                (
+                    keyboard.true_mouse_position.x - self.x,
+                    keyboard.true_mouse_position.y - self.y,
+                )
+            )
         ):  # if clicked the button (the rect checking is just for optimization)
             if self.args == None:
                 self.function()
             else:
                 self.function(*self.args)
+
+    def is_position_in_zone_covered(
+        x: int, y: int, is_position_relative: bool = True
+    ) -> bool:
+        if is_position_relative:
+            x = x - camera.rect.x
+            y = y - camera.rect.y
+        for button in Button.all_buttons:
+            button: Button
+            if (
+                button.is_alive
+                and button.rect.collidepoint((x, y))
+                and button.mask.get_at(
+                    (
+                        x - button.x,
+                        y - button.y,
+                    )
+                )
+            ):  # if clicked the button (the rect checking is just for optimization)
+                return True
+        return False
+
+
+class draw:
+    """class to get special surface easily"""
+
+    def bar_percentage(
+        percentage: float,
+        width: int = 100,
+        height: int = 25,
+        bar_color: pygame.Color = "white",
+        background_color: pygame.Color = None,
+        border_size: int = 5,
+        border_color: pygame.Color | str = "black",
+    ) -> pygame.Surface:
+        if border_size <= 0:
+            raise ValueError("border size can't be less or equal to 0")
+
+        output_surface = pygame.Surface(
+            (width + border_size * 2, height + border_size * 2)
+        )
+        if background_color != None:
+            output_surface.fill(background_color)
+
+        pygame.draw.rect(
+            output_surface,
+            bar_color,
+            pygame.Rect(0, 0, width * percentage / 100, height),
+        )
+
+        pygame.draw.rect(
+            output_surface,
+            border_color,
+            output_surface.get_rect(),
+            border_size,
+        )
+
+        return output_surface
 
 
 def step_to_all_module():
@@ -239,3 +302,12 @@ def step_to_all_module():
 def init_all_module():
     Button.init()
     camera.init()
+
+
+def print_time_of_function(function, *args, **kwds):
+    import time
+
+    start_time = time.time()
+    function(*args, **kwds)
+    end_time = time.time()
+    print("time took=", end_time - start_time)
