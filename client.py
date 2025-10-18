@@ -8,7 +8,7 @@ intro_length = 20
 
 class Server:
 
-    address = socket.gethostbyname(socket.gethostname())  # it's host so it's own ip
+    address = "192.168.1.37"  # it's host so it's own ip
     port = 5000
 
 

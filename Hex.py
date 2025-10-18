@@ -1,6 +1,6 @@
 import pygame as pg
-import math, data, unit_type
-from Unit import Unit
+import math, data, object_type
+from Unit import Object, Unit, Usine
 from pyaddition import keyboard, camera, Button, is_even
 
 
@@ -44,7 +44,7 @@ class Hex:
 
         self.movement_point_needed = movement_point_needed
 
-        self.unit_on_hex: Unit | None = None
+        self.object_on_hex: Object | None = None
 
         self.stat = []
 
@@ -91,24 +91,11 @@ class Hex:
         )
 
     def clicked(self):
-        match data.click_stat.stat:
-            case data.click_stat.SELECT_UNIT:
-                if self.unit_on_hex != None:
-                    self.unit_on_hex.select()
-
-            case data.click_stat.SELECT_UNIT_DESTINATION:
-                if self.unit_on_hex == None:
-                    Unit.unit_selected.move_to(self.w, self.h)
-                    if (
-                        Unit.unit_selected != None
-                    ):  # unit unselect when a he want to go to an unreachable destination
-                        if Unit.unit_selected.movement_point == 0:
-                            Unit.unit_selected.unselect()
-
-            case data.click_stat.SELECT_UNIT_ATTACK:
-                if self.unit_on_hex != None:
-                    Unit.unit_selected.attack(self.unit_on_hex)
-                    data.click_stat.stat = data.click_stat.SELECT_UNIT_DESTINATION
+        if data.click_stat.stat == data.click_stat.SELECT_UNIT:
+            if self.object_on_hex != None:
+                self.object_on_hex.select()
+        else:
+            Object.unit_selected.clicked_somewhere(self)
 
     def create_hexs_map():
         for w in range(Hex.map_width):
@@ -167,20 +154,20 @@ class Hex:
         return (w >= 0 and w < Hex.map_width) and (h >= 0 and h < Hex.map_height)
 
     def debug_highlight(self, highlight_image: pg.Surface = data.hex_highlight):
-        Unit(self.w, self.h, highlight_image, 0)
+        Object(self.w, self.h, highlight_image, 0)
 
     def __str__(self):
-        if self.unit_on_hex == None:
+        if self.object_on_hex == None:
             return str((self.w, self.h))
         else:
-            return str((self.w, self.h, self.unit_on_hex))
+            return str((self.w, self.h, self.object_on_hex))
 
     def __repr__(self):
         return self.__str__()
 
     def get_representation(self):
-        if self.unit_on_hex != None:
-            return self.unit_on_hex.__tuple__()
+        if self.object_on_hex != None:
+            return self.object_on_hex.get_infos()
         else:
             return None
 
@@ -202,33 +189,40 @@ class Hex:
         hex: Hex = Hex.get_hex_by_wh(w, h)
 
         if string_to_load is None:
-            if hex.unit_on_hex != None:
+            if hex.object_on_hex != None:
 
-                hex.unit_on_hex.destroy()
+                hex.object_on_hex.destroy()
 
         else:
-            unit_name: str = string_to_load[0]
-            unit_team: int = string_to_load[1]
-            unit_pv: int = string_to_load[2]
-            unit_ammo: int = string_to_load[3]
-            unit_fuel: int = string_to_load[4]
+            unit_type: str = string_to_load[0]
 
-            if unit_name in unit_type.unit_type.keys():
-                hex.unit_on_hex = Unit(
-                    w,
-                    h,
-                    unit_name,
-                    unit_team,
-                    unit_pv,
-                    unit_ammo,
-                    unit_fuel,
-                )
+            unit_name: str = string_to_load[1]
+            unit_team: int = string_to_load[2]
+            unit_pv: int = string_to_load[3]
 
-            else:
-                raise ValueError(
-                    string_to_load,
-                    type(string_to_load),
-                    "in hex",
-                    hex,
-                    "has not been understood,most likely due that it is incorrect",
-                )
+            match unit_type:
+
+                case object_type.TYPE_UNIT:
+                    unit_ammo: int = string_to_load[4]
+                    unit_fuel: int = string_to_load[5]
+                    hex.object_on_hex = Unit(
+                        w,
+                        h,
+                        unit_name,
+                        unit_team,
+                        unit_pv,
+                        unit_ammo,
+                        unit_fuel,
+                    )
+                case object_type.TYPE_USINE:
+                    unit_material: int = string_to_load[4]
+                    hex.object_on_hex = Usine(
+                        w,
+                        h,
+                        unit_name,
+                        unit_team,
+                        unit_pv,
+                        unit_material,
+                    )
+                case _:
+                    raise ValueError("unit_type unrecognized", unit_type)

@@ -55,7 +55,7 @@ if __name__ == "__main__":
         if is_sending_data:
             send_map_info_to_server()
 
-        Unit.Unit.destroy_all_units()  # it must be between the send and the receive
+        Unit.Object.destroy_all_units()  # it must be between the send and the receive
         Hex.on_end_of_turn()
         discusion_with_server_thread = threading.Thread(
             target=receive_map_info_from_server
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         exit()
 
     init_all_module()
-    Unit.Unit.init(team)
+    Unit.Object.init(team)
     Hex.create_hexs_map()
 
     import data
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     )
 
     def set_click_stat_at_go():
-        data.click_stat.stat = data.click_stat.SELECT_UNIT_DESTINATION
+        data.click_stat.stat = data.click_stat.SELECT_UNIT_MOVEMENT
 
     go_button = Button(
         data.go_button,
@@ -131,21 +131,19 @@ if __name__ == "__main__":
 
     start_of_turn(False)  # it gets the map of the server at the start
 
-    import unit_type
+    import object_type
 
-    Unit.Unit(5, 5, unit_type.TEST_UNIT, team)
+    Unit.Unit(5, 6, object_type.TEST_UNIT, team)
+    # Unit.Usine(5, 5, object_type.TEST_USINE, team)
+
     while running:
         Hex.step_to_all_hex()  # better to put that before button step is called
-        Unit.Unit.step_all_units()
-
-        for line in Hex.all_hexs:
-            for hex in line:
-                hex: Hex
+        Unit.Object.step_all_objects()
 
         step_to_all_module()
         camera_movement.step()
 
-        if Unit.Unit.unit_selected == None:
+        if Unit.Object.unit_selected == None:
             attack_button.is_alive = False
             go_button.is_alive = False
         else:
@@ -162,5 +160,7 @@ if __name__ == "__main__":
 
         pg.display.flip()
         screen.fill((0, 0, 0))
-        clock.tick(fps)
+        clock.tick_busy_loop(fps)
+
+        print(clock.get_fps())
     pg.quit()
