@@ -7,7 +7,7 @@ intro_length = 20
 
 
 class Server:
-    address = "192.168.1.37"  # it's the host
+    address = "0.0.0.0"  # it's the host
     port = 5000  # could be changed
 
     socket_of_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
