@@ -8,14 +8,14 @@ intro_length = 20
 
 class Server:
 
-    address = socket.gethostbyname(socket.gethostname())  # it's host so it's own ip
+    address = "192.168.1.37"
     port = 5000
 
 
 class Client:
     port = 5000 + random.randint(
         1, 1000
-    )  # it's random so maybe it can be the same as someone else?
+    )  # it's random so maybe it can be the same as someone else though it's 0.1% chance
     address = socket.gethostbyname(socket.gethostname())
     socket_to_server: socket.socket = None
 

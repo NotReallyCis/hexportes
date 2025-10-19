@@ -1,15 +1,15 @@
 if __name__ == "__main__":
+    import client
+
+    client.init_all()
+    team: int = client.Client.id
+
     import pygame as pg
 
     pg.init()
     screen = pg.display.set_mode((720, 500))
     clock = pg.time.Clock()
     fps = 120
-
-    import client
-
-    client.init_all()
-    team: int = client.Client.id
 
     print("team is:", team)
 
