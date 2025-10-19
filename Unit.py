@@ -3,10 +3,6 @@ import pygame as pg
 import data, object_type
 
 
-class Hex:
-    """this is only a class to not depends on hex_file.py for type hints"""
-
-
 class Object:
     all_objects = []
     unit_selected = None
@@ -101,13 +97,13 @@ class Object:
             unit.step()
 
     def draw(self):
-        from Hex import Hex
+        from hex import Hex
 
         x, y = Hex.get_xy_by_wh(self.w, self.h)
         camera.show(self.image, (x, y))
 
     def get_hex(self):
-        from Hex import Hex
+        from hex import Hex
 
         hex: Hex = Hex.get_hex_by_wh(self.w, self.h)
         return hex
@@ -115,7 +111,7 @@ class Object:
     def get_xy(self):
         return (self.get_hex().x, self.get_hex().y)
 
-    def clicked_somewhere(self, hex: "Hex"):
+    def clicked_somewhere(self, hex):
         """this is a class for subclass to add things"""
 
     def select(self):
@@ -151,13 +147,13 @@ class Object:
 
     def search_hex(  # TODO: refactor
         self,
-        hex: Hex,
+        hex,
         movement_point_possessed: int,
         path: list,
         is_calculating_movement: bool,
         is_calculating_view_range: bool,
     ):
-        from Hex import Hex
+        from hex import Hex
 
         hex: Hex = hex  # he's visibly happy if you reassing the value with equal
 
@@ -195,7 +191,7 @@ class Object:
             elif hex not in self.possible_range:
                 self.possible_range.append(hex)
 
-    def is_path_from_node_have_not_been_calculated(self, hex: Hex, movement_point: int):
+    def is_path_from_node_have_not_been_calculated(self, hex, movement_point: int):
         """it checks if the coordinate has been calculated arlready with a better path"""
         return (hex not in self.possible_paths.keys()) or (
             self.possible_paths[hex][1] < movement_point
@@ -254,8 +250,8 @@ class Unit(Object):
         if self.get_hex().is_visible:
             self.draw_info()
 
-    def clicked_somewhere(self, hex: "Hex"):
-        from Hex import Hex
+    def clicked_somewhere(self, hex):
+        from hex import Hex
 
         hex: Hex = hex
 
@@ -274,14 +270,14 @@ class Unit(Object):
                     data.click_stat.stat = data.click_stat.SELECT_UNIT_MOVEMENT
 
     def draw_possible_paths(self):
-        from Hex import Hex
+        from hex import Hex
 
         for hex in self.possible_paths:
             hex: Hex
             hex.stat.append(data.hex_type.UNIT_CAN_GO)
 
     def draw_possible_range(self):
-        from Hex import Hex
+        from hex import Hex
 
         for hex in self.possible_range:
             hex: Hex
@@ -308,7 +304,7 @@ class Unit(Object):
             self.search_hex(self.get_hex(), self.range, start_path, False, False)
 
     def move_to(self, w: int, h: int):
-        from Hex import Hex
+        from hex import Hex
 
         hex_to_move: Hex = Hex.get_hex_by_wh(w, h)
 
@@ -336,7 +332,7 @@ class Unit(Object):
             self.get_possible_range()
             self.view_tiles_surronding()
 
-    def have_enough_fuel_to_go_to(self, hex: "Hex"):
+    def have_enough_fuel_to_go_to(self, hex):
         if hex not in self.possible_paths.keys():
             raise ValueError("hex is unreacheable")
         movement_point_consumed = self.movement_point - self.possible_paths[hex][1]
@@ -400,8 +396,8 @@ class Usine(Object):
     def get_infos(self):
         return super().get_infos() + (self.material,)
 
-    def clicked_somewhere(self, hex: "Hex"):
-        from Hex import Hex
+    def clicked_somewhere(self, hex):
+        from hex import Hex
 
         hex: Hex = hex
 

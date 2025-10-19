@@ -14,8 +14,8 @@ if __name__ == "__main__":
     print("team is:", team)
 
     import json, threading, client
-    from Hex import Hex
-    import Unit
+    from hex import Hex
+    import unit
 
     from pyaddition import *
 
@@ -55,7 +55,7 @@ if __name__ == "__main__":
         if is_sending_data:
             send_map_info_to_server()
 
-        Unit.Object.destroy_all_units()  # it must be between the send and the receive
+        unit.Object.destroy_all_units()  # it must be between the send and the receive
         Hex.on_end_of_turn()
         discusion_with_server_thread = threading.Thread(
             target=receive_map_info_from_server
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         exit()
 
     init_all_module()
-    Unit.Object.init(team)
+    unit.Object.init(team)
     Hex.create_hexs_map()
 
     import data
@@ -133,17 +133,17 @@ if __name__ == "__main__":
 
     import object_type
 
-    Unit.Unit(5, 6, object_type.TEST_UNIT, team)
+    test = unit.Unit(5, 6, object_type.TEST_UNIT, team)
     # Unit.Usine(5, 5, object_type.TEST_USINE, team)
-
+    print(test.__dict__)
     while running:
         Hex.step_to_all_hex()  # better to put that before button step is called
-        Unit.Object.step_all_objects()
+        unit.Object.step_all_objects()
 
         step_to_all_module()
         camera_movement.step()
 
-        if Unit.Object.unit_selected == None:
+        if unit.Object.unit_selected == None:
             attack_button.is_alive = False
             go_button.is_alive = False
         else:
@@ -162,5 +162,4 @@ if __name__ == "__main__":
         screen.fill((0, 0, 0))
         clock.tick_busy_loop(fps)
 
-        print(clock.get_fps())
     pg.quit()
