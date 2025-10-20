@@ -1,4 +1,4 @@
-import socket, threading, json, data
+import socket, threading, json
 
 
 intro_length = 20
@@ -7,13 +7,12 @@ intro_length = 20
 
 
 class Server:
-
-    address = socket.gethostbyname(socket.gethostname())  # it's the host
+    address = "0.0.0.0"  # it's the host
     port = 5000  # could be changed
 
     socket_of_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     socket_of_server.bind((address, port))
-    socket_of_server.listen(1)  
+    socket_of_server.listen(1)
     print("listening on", port, ",", address)
 
     def loop_to_accept():
@@ -47,7 +46,7 @@ class Client:
 
     all_clients = {}
 
-    all_map_info: str = data.empty_map_str
+    all_map_info: str = open("developpement_addon/map.txt", "r").read()
     max_team_given = 0
 
     def __init__(self, client_socket: socket.socket, client_address: str):
@@ -137,6 +136,7 @@ class Client:
         print(info, "sent to", self.__str__())
 
     def disconnect(self):
+        self.get_next_client().send_map_infos()
         Server.destroy_disconnected_units(self.team)
         Client.all_clients.pop(self.team)
         print(self.__str__(), "disconnected :<")

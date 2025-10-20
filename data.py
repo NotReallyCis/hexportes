@@ -82,7 +82,9 @@ class hex_type:
         folder = os.fsencode(folder_str)
         for file in os.listdir(folder):
             file_name = os.fsdecode(file)
-            output[file_name] = pg.image.load(folder_str + "/" + file_name)
+            output[file_name] = pg.image.load(
+                folder_str + "/" + file_name
+            ).convert_alpha()
         return output
 
     DEFAULT = "hex.png"
@@ -131,21 +133,27 @@ class hex_type:
 
 ### image ###
 
-fog = pg.image.load("assets/image/fog_hex.png")
+fog = pg.image.load("assets/image/fog_hex.png").convert_alpha()
 
 
-hex_highlight = pg.image.load("assets/essentials-4xgames-tileset/tile-farm-sown.png")
+hex_highlight = pg.image.load(
+    "assets/essentials-4xgames-tileset/tile-farm-sown.png"
+).convert_alpha()
 
-hex_image = pg.image.load("assets/hex_stat/hex_stat_when_mouse_not_on_it/hex.png")
+hex_image = pg.image.load(
+    "assets/hex_stat/hex_stat_when_mouse_not_on_it/hex.png"
+).convert_alpha()
 
-next_turn_button = pg.image.load("assets/image/end_turn_button.png")
+next_turn_button = pg.image.load("assets/image/end_turn_button.png").convert_alpha()
 
-go_button = pg.image.load("assets/image/go_button.png")
-attack_button = pg.image.load("assets/image/attack_button.png")
+go_button = pg.image.load("assets/image/go_button.png").convert_alpha()
+attack_button = pg.image.load("assets/image/attack_button.png").convert_alpha()
 
-background_waiting_image = pg.image.load("assets/image/placeholder_image_waiting.png")
+background_waiting_image = pg.image.load(
+    "assets/image/placeholder_image_waiting.png"
+).convert_alpha()
 
-fuel_icon = pg.image.load("assets/image/fuel_icon.png")
+fuel_icon = pg.image.load("assets/image/fuel_icon.png").convert_alpha()
 
 ### map ###
 
@@ -157,6 +165,7 @@ class click_stat:
     """this class is used to define the different stat of action done when a click occurs"""
 
     SELECT_UNIT = "select_unit"
-    SELECT_UNIT_DESTINATION = "select_unit_destination"
+    SELECT_UNIT_MOVEMENT = "select_unit_destination"
     SELECT_UNIT_ATTACK = "select_unit_to_attack"
+    SELECT_UNIT_CREATION = "select_unit_creation"
     stat = None
