@@ -15,7 +15,11 @@ if __name__ == "__main__":
 
     import json, threading, client
     from Hex import Hex
+<<<<<<< HEAD
     import unit
+=======
+    import Unit
+>>>>>>> parent of ad10661 (Merge branch 'main' of https://github.com/femboyv/hexportes)
 
     from pyaddition import *
 
@@ -55,7 +59,7 @@ if __name__ == "__main__":
         if is_sending_data:
             send_map_info_to_server()
 
-        unit.Object.destroy_all_units()  # it must be between the send and the receive
+        Unit.Unit.destroy_all_units()  # it must be between the send and the receive
         Hex.on_end_of_turn()
         discusion_with_server_thread = threading.Thread(
             target=receive_map_info_from_server
@@ -95,7 +99,7 @@ if __name__ == "__main__":
             )  # 200 is a random value
 
     init_all_module()
-    unit.Object.init(team)
+    Unit.Unit.init(team)
     Hex.create_hexs_map()
 
     import data
@@ -120,6 +124,23 @@ if __name__ == "__main__":
         unit.Object.unselect_unit_selected,
     )
 
+<<<<<<< HEAD
+=======
+    def set_click_stat_at_go():
+        data.click_stat.stat = data.click_stat.SELECT_UNIT_DESTINATION
+
+    go_button = Button(
+        data.go_button,
+        set_click_stat_at_go,
+        100,
+        0,
+        50,
+        50,
+    )
+
+    data.create_function_on_key_map("end_of_turn", start_of_turn)
+
+>>>>>>> parent of ad10661 (Merge branch 'main' of https://github.com/femboyv/hexportes)
     placeholder_image_waiting = data.background_waiting_image
     placeholder_image_waiting = placeholder_image_waiting.scale(*screen.get_size())
 
@@ -127,20 +148,38 @@ if __name__ == "__main__":
 
     start_of_turn(False)  # it gets the map of the server at the start
 
-    import object_type
+    import unit_type
 
+<<<<<<< HEAD
     unit.Usine(6, 6, object_type.TEST_USINE, team)
     unit.Usine(6, 7, object_type.TEST_USINE, team)
     unit.Usine(6, 8, object_type.TEST_USINE, team)
     unit.Unit(5, 6, object_type.TEST_UNIT, team)
 
+=======
+    Unit.Unit(5, 5, unit_type.TEST_UNIT, team)
+>>>>>>> parent of ad10661 (Merge branch 'main' of https://github.com/femboyv/hexportes)
     while running:
         Hex.step_to_all_hex()  # better to put that before button step is called
-        unit.Object.step_all_objects()
+        Unit.Unit.step_all_units()
+
+        for line in Hex.all_hexs:
+            for hex in line:
+                hex: Hex
 
         step_to_all_module()
         camera_movement.step()
 
+<<<<<<< HEAD
+=======
+        if Unit.Unit.unit_selected == None:
+            attack_button.is_alive = False
+            go_button.is_alive = False
+        else:
+            attack_button.is_alive = True
+            go_button.is_alive = True
+
+>>>>>>> parent of ad10661 (Merge branch 'main' of https://github.com/femboyv/hexportes)
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 quit()
@@ -152,6 +191,5 @@ if __name__ == "__main__":
         show_fps(True)
         pg.display.flip()
         screen.fill((0, 0, 0))
-        clock.tick_busy_loop(fps)
-
+        clock.tick(fps)
     pg.quit()

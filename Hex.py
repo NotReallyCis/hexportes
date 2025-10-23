@@ -1,7 +1,13 @@
 import pygame as pg
+<<<<<<< HEAD
 import math, data, object_type
 from unit import Object, Unit, Usine
 from pyaddition import keyboard, Button, is_even, Visible_object
+=======
+import math, data, unit_type
+from Unit import Unit
+from pyaddition import keyboard, camera, Button, is_even
+>>>>>>> parent of ad10661 (Merge branch 'main' of https://github.com/femboyv/hexportes)
 
 
 class Hex:
@@ -34,7 +40,7 @@ class Hex:
 
         self.default_movement_point_needed = movement_point_needed
 
-        self.object_on_hex: Object | None = None
+        self.unit_on_hex: Unit | None = None
 
         self.stat = []
 
@@ -101,11 +107,32 @@ class Hex:
         )
 
     def clicked(self):
+<<<<<<< HEAD
         if data.click_stat.stat == data.click_stat.SELECT_UNIT:
             if self.object_on_hex != None:
                 self.object_on_hex.select()
         else:
             Object.object_selected.clicked_somewhere(self)
+=======
+        match data.click_stat.stat:
+            case data.click_stat.SELECT_UNIT:
+                if self.unit_on_hex != None:
+                    self.unit_on_hex.select()
+
+            case data.click_stat.SELECT_UNIT_DESTINATION:
+                if self.unit_on_hex == None:
+                    Unit.unit_selected.move_to(self.w, self.h)
+                    if (
+                        Unit.unit_selected != None
+                    ):  # unit unselect when a he want to go to an unreachable destination
+                        if Unit.unit_selected.movement_point == 0:
+                            Unit.unit_selected.unselect()
+
+            case data.click_stat.SELECT_UNIT_ATTACK:
+                if self.unit_on_hex != None:
+                    Unit.unit_selected.attack(self.unit_on_hex)
+                    data.click_stat.stat = data.click_stat.SELECT_UNIT_DESTINATION
+>>>>>>> parent of ad10661 (Merge branch 'main' of https://github.com/femboyv/hexportes)
 
     def create_hexs_map():
         for w in range(Hex.map_width):
@@ -172,18 +199,24 @@ class Hex:
     def is_wh_inside_border(w: int, h: int):
         return (w >= 0 and w < Hex.map_width) and (h >= 0 and h < Hex.map_height)
 
+<<<<<<< HEAD
+=======
+    def debug_highlight(self, highlight_image: pg.Surface = data.hex_highlight):
+        Unit(self.w, self.h, highlight_image, 0)
+
+>>>>>>> parent of ad10661 (Merge branch 'main' of https://github.com/femboyv/hexportes)
     def __str__(self):
-        if self.object_on_hex == None:
+        if self.unit_on_hex == None:
             return str((self.w, self.h))
         else:
-            return str((self.w, self.h, self.object_on_hex))
+            return str((self.w, self.h, self.unit_on_hex))
 
     def __repr__(self):
         return self.__str__()
 
     def get_representation(self):
-        if self.object_on_hex != None:
-            return self.object_on_hex.get_infos()
+        if self.unit_on_hex != None:
+            return self.unit_on_hex.__tuple__()
         else:
             return None
 
@@ -204,6 +237,7 @@ class Hex:
     def load_hex__str__(w: int, h: int, infos: dict | None):
         hex: Hex = Hex.get_hex_by_wh(w, h)
 
+<<<<<<< HEAD
         if infos is None:
             if hex.object_on_hex != None:
                 hex.object_on_hex.destroy()
@@ -211,3 +245,36 @@ class Hex:
         else:
             unit_type = object_type.get_class_by_type_name(infos[object_type.TYPE])
             unit_type.create_object_from_infos(w, h, infos)
+=======
+        if string_to_load is None:
+            if hex.unit_on_hex != None:
+
+                hex.unit_on_hex.destroy()
+
+        else:
+            unit_name: str = string_to_load[0]
+            unit_team: int = string_to_load[1]
+            unit_pv: int = string_to_load[2]
+            unit_ammo: int = string_to_load[3]
+            unit_fuel: int = string_to_load[4]
+
+            if unit_name in unit_type.unit_type.keys():
+                hex.unit_on_hex = Unit(
+                    w,
+                    h,
+                    unit_name,
+                    unit_team,
+                    unit_pv,
+                    unit_ammo,
+                    unit_fuel,
+                )
+
+            else:
+                raise ValueError(
+                    string_to_load,
+                    type(string_to_load),
+                    "in hex",
+                    hex,
+                    "has not been understood,most likely due that it is incorrect",
+                )
+>>>>>>> parent of ad10661 (Merge branch 'main' of https://github.com/femboyv/hexportes)
