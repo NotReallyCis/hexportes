@@ -31,11 +31,13 @@ class Server:
         # not ".run" because ".start" have to be called at least once per thread
 
     def destroy_disconnected_units(team_disconnected: int):
+        import object_type
+
         map_info = json.loads(Client.all_map_info)
         for x, line in enumerate(map_info):
             for y, unit in enumerate(line):
                 if unit != None:
-                    unit_team = unit[1]
+                    unit_team = unit[object_type.TEAM]
                     if unit_team == team_disconnected:
                         map_info[x][y] = None
 
@@ -131,12 +133,15 @@ class Client:
             info = json.dumps(info)
 
         output_to_send = self.get_0_before_int(info.__len__(), intro_length) + info
-
-        self.socket.send(output_to_send.encode("utf-8"))
+        try:
+            self.socket.send(output_to_send.encode("utf-8"))
+        except ConnectionResetError:
+            self.disconnect()
         print(info, "sent to", self.__str__())
 
     def disconnect(self):
-        self.get_next_client().send_map_infos()
+        if len(Client.all_clients.keys()) != 1:
+            self.get_next_client().send_map_infos()
         Server.destroy_disconnected_units(self.team)
         Client.all_clients.pop(self.team)
         print(self.__str__(), "disconnected :<")

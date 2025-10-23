@@ -1,3 +1,5 @@
+from pyaddition import Image, keyboard
+
 ####### teams color ######
 
 
@@ -19,30 +21,29 @@ all_colors = get_all_colors()
 
 
 ######## key map ########
+class key_map:
+    map_of_key = {
+        "up": "z",
+        "down": "s",
+        "left": "q",
+        "right": "d",
+        "end_of_turn": "f5",
+        "escape": "escape",
+    }
 
-map_of_key = {
-    "up": "z",
-    "down": "s",
-    "left": "q",
-    "right": "d",
-    "end_of_turn": "f5",
-}
+    def is_command_pressed(command: str):
 
-from pyaddition import keyboard
+        return keyboard.is_key_pressed(key_map.map_of_key[command])
 
+    def create_function_on_key_map(
+        command: str, function: "function", execute_only_once: bool = True, *args
+    ):
 
-def is_command_pressed(command: str):
-    return keyboard.is_key_pressed(map_of_key[command])
-
-
-def create_function_on_key_map(
-    command: str, function: "function", execute_only_once: bool = True
-):
-    keyboard.set_new_key_map(
-        map_of_key[command],
-        execute_only_once,
-        function,
-    )
+        keyboard.set_new_key_map(
+            key_map.map_of_key[command],
+            execute_only_once,
+            function,
+        )
 
 
 ######## sound #######
@@ -133,7 +134,7 @@ class hex_type:
 
 ### image ###
 
-fog = pg.image.load("assets/image/fog_hex.png").convert_alpha()
+fog = Image("assets/image/fog_hex.png")
 
 
 hex_highlight = pg.image.load(
@@ -168,4 +169,6 @@ class click_stat:
     SELECT_UNIT_MOVEMENT = "select_unit_destination"
     SELECT_UNIT_ATTACK = "select_unit_to_attack"
     SELECT_UNIT_CREATION = "select_unit_creation"
+    SELECT_UNIT_TO_CREATE = "select_unit_to_create"
+    unit_name_to_create: str
     stat = None

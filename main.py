@@ -14,7 +14,7 @@ if __name__ == "__main__":
     print("team is:", team)
 
     import json, threading, client
-    from hex import Hex
+    from Hex import Hex
     import unit
 
     from pyaddition import *
@@ -77,8 +77,22 @@ if __name__ == "__main__":
     def quit():
         global running
         running = False
-        pygame.quit()
+        pg.quit()
         exit()
+
+    def show_fps(show: bool):
+        import pyaddition
+
+        if show:
+            text_surface: pg.Surface = pyaddition.draw.text(clock.get_fps())
+            pyaddition.camera.show(
+                text_surface,
+                (
+                    screen.get_width() - 50,
+                    0,
+                ),
+                True,
+            )  # 200 is a random value
 
     init_all_module()
     unit.Object.init(team)
@@ -96,36 +110,18 @@ if __name__ == "__main__":
         50,
         50,
         True,
+        True,
     )
 
-    def set_click_stat_at_attack():
-        data.click_stat.stat = data.click_stat.SELECT_UNIT_ATTACK
+    data.key_map.create_function_on_key_map("end_of_turn", start_of_turn)
 
-    attack_button = Button(
-        data.attack_button,
-        set_click_stat_at_attack,
-        50,
-        0,
-        50,
-        50,
+    data.key_map.create_function_on_key_map(
+        "escape",
+        unit.Object.unselect_unit_selected,
     )
-
-    def set_click_stat_at_go():
-        data.click_stat.stat = data.click_stat.SELECT_UNIT_MOVEMENT
-
-    go_button = Button(
-        data.go_button,
-        set_click_stat_at_go,
-        100,
-        0,
-        50,
-        50,
-    )
-
-    data.create_function_on_key_map("end_of_turn", start_of_turn)
 
     placeholder_image_waiting = data.background_waiting_image
-    pg.transform.scale(placeholder_image_waiting, screen.get_size())
+    placeholder_image_waiting = placeholder_image_waiting.scale(*screen.get_size())
 
     running = True
 
@@ -133,22 +129,17 @@ if __name__ == "__main__":
 
     import object_type
 
-    test = unit.Unit(5, 6, object_type.TEST_UNIT, team)
-    # Unit.Usine(5, 5, object_type.TEST_USINE, team)
-    print(test.__dict__)
+    unit.Usine(6, 6, object_type.TEST_USINE, team)
+    unit.Usine(6, 7, object_type.TEST_USINE, team)
+    unit.Usine(6, 8, object_type.TEST_USINE, team)
+    unit.Unit(5, 6, object_type.TEST_UNIT, team)
+
     while running:
         Hex.step_to_all_hex()  # better to put that before button step is called
         unit.Object.step_all_objects()
 
         step_to_all_module()
         camera_movement.step()
-
-        if unit.Object.unit_selected == None:
-            attack_button.is_alive = False
-            go_button.is_alive = False
-        else:
-            attack_button.is_alive = True
-            go_button.is_alive = True
 
         for event in pg.event.get():
             if event.type == pg.QUIT:
@@ -158,6 +149,7 @@ if __name__ == "__main__":
             elif event.type == pg.KEYUP:
                 keyboard.key_release(event.key)
 
+        show_fps(True)
         pg.display.flip()
         screen.fill((0, 0, 0))
         clock.tick_busy_loop(fps)

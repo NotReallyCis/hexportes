@@ -1,4 +1,4 @@
-from data import is_command_pressed
+from data import key_map
 from pyaddition import keyboard, camera
 
 camera_speed = 6
@@ -13,16 +13,16 @@ def vertical_camera_movement(direction: "int[-1, 0, 1]"):
 
 
 def step():
-    if is_command_pressed("up"):
+    if key_map.is_command_pressed("up"):
         vertical_camera_movement(-1)
-    elif is_command_pressed("down"):
+    elif key_map.is_command_pressed("down"):
         vertical_camera_movement(1)
     else:
         vertical_camera_movement(0)
 
-    if is_command_pressed("left"):
+    if key_map.is_command_pressed("left"):
         horizontal_camera_movement(-1)
-    elif is_command_pressed("right"):
+    elif key_map.is_command_pressed("right"):
         horizontal_camera_movement(1)
     else:
         horizontal_camera_movement(0)

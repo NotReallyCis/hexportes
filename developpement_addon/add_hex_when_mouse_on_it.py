@@ -11,6 +11,7 @@ this file is for converting the hex_stat_when_mouse_not_on_it folder to a hex_st
 
 directory_str = "assets/hex_stat/hex_stat_when_mouse_not_on_it"
 output_directory_str = "assets/hex_stat/hex_stat_when_mouse_on_it"
+calc_to_add = pg.image.load("developpement_addon/mouse_on_it_calc.png")
 
 
 def reset_folder(folder: str = output_directory_str):
@@ -44,17 +45,7 @@ from data import hex_type
 def set_mouse_on_it_types(image: pg.Surface):
     image = image.copy()
     image = pg.transform.scale(image, (hex_type.width, hex_type.height))
-    for x in range(image.get_width()):
-        for y in range(image.get_height()):
-            color = image.get_at((x, y))
-            color_r = min(color.r + hex_type.luminosity_added_when_mouse_on_hex, 255)
-            color_g = min(color.g + hex_type.luminosity_added_when_mouse_on_hex, 255)
-            color_b = min(color.b + hex_type.luminosity_added_when_mouse_on_hex, 255)
-            color_a = color.a
-            image.set_at(
-                (x, y),
-                pg.Color(color_r, color_g, color_b, color_a),
-            )
+    image.blit(calc_to_add)
     return image
 
 
