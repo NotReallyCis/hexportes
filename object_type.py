@@ -12,7 +12,6 @@ TEST_UNIT = "first_test"
 DAMAGE = "damage"
 AMMO = "ammo"
 FUEL = "fuel"
-<<<<<<< HEAD:object_type.py
 COST = "cost"
 MATERIAL = "material"
 CREATABLE_UNIT = "creatable_unit"
@@ -28,10 +27,6 @@ TYPE_USINE = "Usine"
 TYPE_OBJECT = "Object"
 
 object_type = {
-=======
-
-unit_type = {
->>>>>>> parent of ad10661 (Merge branch 'main' of https://github.com/femboyv/hexportes):unit_type.py
     TEST_UNIT: {
         MOVEMENT_POINT: 4,
         RANGE: 5,
@@ -56,7 +51,6 @@ unit_type = {
         MOVEMENT_POINT_NEEDED: 2,
         COST: 10,
     },
-<<<<<<< HEAD:object_type.py
     TEST_USINE: {
         VIEW_RANGE: 5,
         IMAGE: "tile-village.png",
@@ -91,14 +85,6 @@ def get_class_by_type_name(type_name: str):
         raise ValueError(type_name, "is not recognized as a type name")
 
 
-import developpement_addon.create_button
+# import developpement_addon.create_button
 
-developpement_addon.create_button.create_button_for_each_unit()
-=======
-}
-
-
-def get_unit_image_by_unit_and_color(unit_name: str, color: str):
-    image_name = unit_type[unit_name][IMAGE]
-    return pg.image.load(data.directory_unit_team_color + color + "_" + image_name)
->>>>>>> parent of ad10661 (Merge branch 'main' of https://github.com/femboyv/hexportes):unit_type.py
+# developpement_addon.create_button.create_button_for_each_unit()

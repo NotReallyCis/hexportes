@@ -7,7 +7,7 @@ import data
 import pygame as pg
 
 fog = pg.image.load("assets/image/fog_map.png")
-hex_image = data.hex_image
+hex_image = data.hex_surface
 hex_image = hex_image.copy()
 hex_image = pg.transform.scale(hex_image, (data.hex_type.width, data.hex_type.height))
 hex_mask = pg.mask.from_surface(hex_image, 1)

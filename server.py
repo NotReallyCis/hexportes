@@ -13,7 +13,7 @@ class Server:
 
     socket_of_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     socket_of_server.bind((address, port))
-    socket_of_server.listen(1)  
+    socket_of_server.listen(1)
     print("listening on", port, ",", address)
 
     def loop_to_accept():
@@ -141,11 +141,8 @@ class Client:
         print(info, "sent to", self.__str__())
 
     def disconnect(self):
-<<<<<<< HEAD
         if len(Client.all_clients.keys()) != 1:
             self.get_next_client().send_map_infos()
-=======
->>>>>>> parent of ad10661 (Merge branch 'main' of https://github.com/femboyv/hexportes)
         Server.destroy_disconnected_units(self.team)
         Client.all_clients.pop(self.team)
         print(self.__str__(), "disconnected :<")

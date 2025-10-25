@@ -127,24 +127,6 @@ class keyboard:
             keyboard.key_map_execute_on_step[key] = (function_to_execute_when_press,)
 
 
-class Image:
-    def __init__(self, path_or_surface: str | pg.Surface):
-        if isinstance(path_or_surface, str):
-            self.surface = pg.image.load(path_or_surface)
-        else:
-            self.surface = path_or_surface
-
-        self.is_converted = False
-
-    def convert(self):
-        if not self.is_converted:
-            self.surface = self.surface.convert_alpha()
-            self.is_converted = True
-
-    def scale(self, width: int, height: int):
-        return pg.transform.scale(self.surface, (width, height))
-
-
 class camera:
     rect: pg.Rect = None
     screen: pg.Surface = None
@@ -161,7 +143,7 @@ class camera:
         camera.rect.y += camera.movement.y
 
     def show(
-        image: pg.Surface | Image,
+        image: pg.Surface,
         position: pg.Rect | tuple[int, int],
         is_blocked_on_screen: bool = False,
     ):
@@ -169,14 +151,11 @@ class camera:
         if isinstance(position, tuple):
             position = image.get_rect(x=position[0], y=position[1])
 
-        if isinstance(image, Image):
-            image.convert()
-            image = image.surface
-
         if position.x < 0:
             position.x += camera.rect.width
         if position.y < 0:
             position.y += camera.rect.height  # "+=" because it's negative number
+
         if is_blocked_on_screen:  # it's globally a pg.blit
 
             pg.display.get_surface().blit(image, position)
@@ -198,6 +177,8 @@ class Visible_object:
     all_visible_objects: dict[int, list["Visible_object"]] = {}
     # format is depth:[list of all object with this depth]
 
+    loaded_path: dict[str, pg.Surface] = {}
+
     def init():
         max_depth = 255
         min_depth = 0
@@ -209,26 +190,27 @@ class Visible_object:
         for depth in Visible_object.all_visible_objects:
             for visible_object in Visible_object.all_visible_objects[depth]:
                 camera.show(
-                    visible_object.image,
+                    visible_object.surface,
                     visible_object.rect,
                     visible_object.is_fixed_to_the_screen,
                 )
 
     def __init__(
         self,
-        image: Image,
+        image_path: str,
         rect_or_pos: pg.Rect | tuple[int, int],
         depth: int = 127,
         is_fixed_to_the_screen: bool = False,
         is_alive_at_start: bool = True,
     ):
-        """depth: a higher depth will make the object be blitted at last, so will be on top of other surface, it goes from 0 to 255"""
+        """depth: a higher depth will make the object on top, it goes from 0 to 255"""
 
-        self.image = image
+        self.surface = Visible_object.get_image_from_path(image_path)
+
         if type(rect_or_pos) == pg.Rect:
             self.rect: pg.Rect = rect_or_pos
         else:
-            self.rect = self.image.surface.get_rect(topleft=rect_or_pos)
+            self.rect = self.surface.get_rect(topleft=rect_or_pos)
 
         self.depth = depth
         self.is_alive = is_alive_at_start
@@ -250,11 +232,21 @@ class Visible_object:
     def set_xy(self, new_x: int, new_y: int):
         self.rect = self.rect.move(new_x, new_y)
 
-    def change_image(self, new_image: Image):
-        """please do not change image every tick, this function eat performance"""
+    @classmethod
+    def get_image_from_path(cls, path: str) -> pg.Surface:
+        image: pg.Surface
+        if path not in Visible_object.loaded_path.keys():
+            image = pg.image.load(path).convert_alpha()
+            Visible_object.loaded_path[path] = image.copy()
+        else:
+            image = Visible_object.loaded_path[path].copy()
+        return image
 
-        self.image = new_image
-        self.rect = self.image.get_rect(topleft=self.rect.topleft)
+    def change_image(self, new_path: str):
+        """change the path of the image to change the image"""
+
+        self.surface = Visible_object.get_image_from_path(new_path)
+        self.rect = self.surface.get_rect(topleft=self.rect.topleft)
 
 
 class Button:
@@ -266,21 +258,24 @@ class Button:
 
     def __init__(
         self,
-        image: Image,
+        image_path: str,
         function_to_execute_on_click: "function",
         x: int = 0,
         y: int = 0,
-        width: int = 100,
-        height: int = 100,
         is_alive_at_start: bool = True,
         *args_to_function,
     ):
         self.x, self.y = x, y
-        self.width, self.height = width, height
 
-        self.image = image.scale(self.width, self.height)
+        self.visible_object = Visible_object(
+            image_path,
+            (self.x, self.y),
+            254,
+            True,
+            is_alive_at_start,
+        )
 
-        self.mask = pg.mask.from_surface(self.image, 1)
+        self.mask = pg.mask.from_surface(self.visible_object.surface, 1)
         self.rect = self.mask.get_rect(x=self.x, y=self.y)
 
         self.function = function_to_execute_on_click
@@ -301,10 +296,6 @@ class Button:
             button: Button
             if button.is_alive:
                 button.step()
-
-    def draw(self):
-
-        camera.show(self.image, (self.x, self.y), True)
 
     def on_click(self):
         if (

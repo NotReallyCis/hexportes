@@ -1,4 +1,4 @@
-from pyaddition import Image, keyboard
+from pyaddition import keyboard
 
 ####### teams color ######
 
@@ -75,27 +75,26 @@ class hex_type:
     folder_str_mouse_not_on_it = "assets/hex_stat/hex_stat_when_mouse_not_on_it"
     folder_str_mouse_on_it = "assets/hex_stat/hex_stat_when_mouse_on_it"
 
-    def get_all_image_in_folder(folder_str: str):
+    def get_all_files_in_folder(folder_str: str):
         """the return format is a dict with filename (relative to the folder):image"""
         import os
 
-        output = {}
+        all_files_names = []
         folder = os.fsencode(folder_str)
         for file in os.listdir(folder):
-            file_name = os.fsdecode(file)
-            output[file_name] = pg.image.load(folder_str + "/" + file_name)
-        return output
+            all_files_names.append(os.fsdecode(file))
+        return all_files_names
 
     DEFAULT = "hex.png"
     UNIT_CAN_GO = "hex_can_go.png"
     UNIT_CAN_ATTACK = "hex_can_attack.png"
 
-    types_mouse_not_on_it = get_all_image_in_folder(folder_str_mouse_not_on_it)
+    types_mouse_not_on_it = get_all_files_in_folder(folder_str_mouse_not_on_it)
     for key in types_mouse_not_on_it:
         image = types_mouse_not_on_it[key]
         image = pg.transform.scale(image, (width, height))
         types_mouse_not_on_it[key] = image
-    types_mouse_on_it = get_all_image_in_folder(folder_str_mouse_on_it)
+    types_mouse_on_it = get_all_files_in_folder(folder_str_mouse_on_it)
 
     def get_hex_image_from_stat(
         stats: list, is_mouse_on_it: bool, is_visible: bool
@@ -132,16 +131,12 @@ class hex_type:
 
 ### image ###
 
-<<<<<<< HEAD
-fog = Image("assets/image/fog_hex.png")
-=======
 fog = pg.image.load("assets/image/fog_hex.png")
->>>>>>> parent of ad10661 (Merge branch 'main' of https://github.com/femboyv/hexportes)
 
 
 hex_highlight = pg.image.load("assets/essentials-4xgames-tileset/tile-farm-sown.png")
 
-hex_image = pg.image.load("assets/hex_stat/hex_stat_when_mouse_not_on_it/hex.png")
+hex_surface = pg.image.load("assets/hex_stat/hex_stat_when_mouse_not_on_it/hex.png")
 
 next_turn_button = pg.image.load("assets/image/end_turn_button.png")
 
@@ -162,12 +157,9 @@ class click_stat:
     """this class is used to define the different stat of action done when a click occurs"""
 
     SELECT_UNIT = "select_unit"
-    SELECT_UNIT_DESTINATION = "select_unit_destination"
+    SELECT_UNIT_MOVEMENT = "select_unit_destination"
     SELECT_UNIT_ATTACK = "select_unit_to_attack"
-<<<<<<< HEAD
     SELECT_UNIT_CREATION = "select_unit_creation"
     SELECT_UNIT_TO_CREATE = "select_unit_to_create"
     unit_name_to_create: str
-=======
->>>>>>> parent of ad10661 (Merge branch 'main' of https://github.com/femboyv/hexportes)
     stat = None

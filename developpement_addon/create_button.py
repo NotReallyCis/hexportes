@@ -4,7 +4,6 @@ sys.path.append("C:/Users/bauma/Documents/GitHub/hexportes")
 
 
 import object_type
-from pyaddition import Image
 import pygame as pg
 
 
