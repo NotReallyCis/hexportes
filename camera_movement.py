@@ -1,5 +1,5 @@
 from data import is_command_pressed
-from pyaddition import keyboard, camera
+from pyg import keyboard, camera
 
 camera_speed = 6
 

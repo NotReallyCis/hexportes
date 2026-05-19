@@ -1,5 +1,4 @@
 import socket, random, json
-import pyaddition as pyadd
 
 intro_length = 20
 # the intro length is the number of number that is sent at start of message to give the length of the message
@@ -8,7 +7,7 @@ intro_length = 20
 
 class Server:
 
-    address = "192.168.1.37"
+    address = "172.25.87.200"
     port = 5000
 
 
@@ -18,12 +17,13 @@ class Client:
     )  # it's random so maybe it can be the same as someone else though it's 0.1% chance
     address = socket.gethostbyname(socket.gethostname())
     socket_to_server: socket.socket = None
+    id: int
 
     def init():
 
         print("port=", Client.port, "addr=", Client.address)
 
-        print("triying connect to", Server.port, ",", Server.address)
+        print("trying to connect to", Server.port, ",", Server.address)
         Client.socket_to_server = Client.connect(Server.port, Server.address)
         print("connected to", Server.port, ",", Server.address)
 

@@ -19,7 +19,7 @@ all_colors = get_all_colors()
 
 
 ######## key map ########
-
+# FIXME: remove that
 map_of_key = {
     "up": "z",
     "down": "s",
@@ -28,7 +28,7 @@ map_of_key = {
     "end_of_turn": "f5",
 }
 
-from pyaddition import keyboard
+from pyg import keyboard
 
 
 def is_command_pressed(command: str):
@@ -62,6 +62,7 @@ directory_unit_team_color = "assets/unit_with_team_color" + "/"
 ### hex_type ###
 
 
+# FIXME: this shit is definitly doing some weird things
 class hex_type:
     import math
 
@@ -143,7 +144,10 @@ next_turn_button = pg.image.load("assets/image/end_turn_button.png")
 go_button = pg.image.load("assets/image/go_button.png")
 attack_button = pg.image.load("assets/image/attack_button.png")
 
-background_waiting_image = pg.image.load("assets/image/placeholder_image_waiting.png")
+background_waiting_image = pg.transform.scale(
+    pg.image.load("assets/image/placeholder_image_waiting.png"),
+    pg.display.get_surface().get_size(),
+)
 
 fuel_icon = pg.image.load("assets/image/fuel_icon.png")
 

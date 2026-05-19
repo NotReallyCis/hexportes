@@ -1,6 +1,5 @@
 import socket, threading, json, data
 
-
 intro_length = 20
 # the intro length is the number of number that is sent at start of message to give the length of the message
 # it should be the same in the server and in the client
@@ -13,11 +12,11 @@ class Server:
 
     socket_of_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     socket_of_server.bind((address, port))
-    socket_of_server.listen(1)  
+    socket_of_server.listen(1)
     print("listening on", port, ",", address)
 
     def loop_to_accept():
-        (client_socket, client_address) = Server.socket_of_server.accept()
+        client_socket, client_address = Server.socket_of_server.accept()
         Server.create_client(client_socket, client_address)
 
     def create_client(client_socket: socket.socket, client_address):

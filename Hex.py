@@ -1,7 +1,7 @@
 import pygame as pg
 import math, data, unit_type
 from Unit import Unit
-from pyaddition import keyboard, camera, Button, is_even
+from pyg import keyboard, camera, Button, is_even
 
 
 class Hex:
@@ -72,7 +72,7 @@ class Hex:
     def draw(self):
 
         is_cursor_on_self = Hex.hex_cursor_is_on == self
-        camera.show(
+        camera(
             data.hex_type.get_hex_image_from_stat(
                 self.stat, is_cursor_on_self, self.is_visible
             ),

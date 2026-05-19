@@ -1,4 +1,4 @@
-from pyaddition import camera, draw, get_percentage
+from pyg import camera, draw, get_percentage
 import pygame as pg
 import data, unit_type
 
@@ -14,13 +14,14 @@ class Unit:
     color_remaining = data.all_colors
     selected_bad_unit_sound = data.selected_bad_unit_sound
 
-    def init(team: int):
+    @classmethod
+    def init(cls,team: int):
         Unit.team_of_main = team
 
         Unit.map_teams_to_color = {Unit.team_of_main: Unit.color_remaining[0]}
         Unit.color_remaining.pop(0)
 
-    def __init__(
+    def __init__(  # FIXME: way too long
         self,
         w: int,
         h: int,
@@ -132,7 +133,7 @@ class Unit:
         from Hex import Hex
 
         x, y = Hex.get_xy_by_wh(self.w, self.h)
-        camera.show(self.image, (x, y))
+        camera(self.image, (x, y))
 
     def draw_info(self):
         x, y = self.get_xy()
@@ -144,7 +145,7 @@ class Unit:
             border_size=1,
             bar_color=pg.Color(0, 250, 0),
         )
-        camera.show(life_info, (x, y - 5))
+        camera(life_info, (x, y - 5))
 
         fuel_info = draw.bar_percentage(
             get_percentage(self.fuel, self.default_fuel),
@@ -153,7 +154,7 @@ class Unit:
             border_size=1,
             bar_color=pg.Color(250, 123, 0),
         )
-        camera.show(fuel_info, (x, y))
+        camera(fuel_info, (x, y))
 
         ammo_info = draw.bar_percentage(
             get_percentage(self.ammo, self.default_ammo),
@@ -162,7 +163,7 @@ class Unit:
             border_size=1,
             bar_color=pg.Color(250, 0, 0),
         )
-        camera.show(ammo_info, (x, y + 5))
+        camera(ammo_info, (x, y + 5))
 
     def draw_possible_paths(self):
         from Hex import Hex
