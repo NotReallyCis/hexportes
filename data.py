@@ -6,7 +6,7 @@ def get_all_image_in_folder(folder_str: str):
     """the return format is a dict with filename (relative to the folder):image"""
     import os
 
-    output = {}
+    output: dict[str, pg.Surface] = {}
     folder = os.fsencode(folder_str)
     for file in os.listdir(folder):
         file_name = os.fsdecode(file)
@@ -85,8 +85,6 @@ class hex_type:
     width = math.sqrt(3) * size  # pythagorean theorem
     height = 2 * size  # and that comes from a website
 
-    luminosity_added_when_mouse_on_hex = 50
-
     folder_str_mouse_not_on_it = "assets/hex_stat/hex_stat_when_mouse_not_on_it"
     folder_str_mouse_on_it = "assets/hex_stat/hex_stat_when_mouse_on_it"
 
@@ -94,44 +92,46 @@ class hex_type:
     UNIT_CAN_GO = "hex_can_go.png"
     UNIT_CAN_ATTACK = "hex_can_attack.png"
 
-    types_mouse_not_on_it = get_all_image_in_folder(folder_str_mouse_not_on_it)
-    for key in types_mouse_not_on_it:
-        image = types_mouse_not_on_it[key]
+    luminosity_added_when_mouse_on_hex = 50
+    mouse_on_it_image_mask = pg.Surface((width, height))
+    """To add to an image with pg.BLEND_RGB_ADD to make it look selected"""
+    mouse_on_it_image_mask.fill(
+        pg.Color(
+            luminosity_added_when_mouse_on_hex,
+            luminosity_added_when_mouse_on_hex,
+            luminosity_added_when_mouse_on_hex,
+        )
+    )
+
+    image_types = get_all_image_in_folder(folder_str_mouse_not_on_it)
+    for key in image_types:
+        image = image_types[key]
         image = pg.transform.scale(image, (width, height))
-        types_mouse_not_on_it[key] = image
+        image_types[key] = image
     types_mouse_on_it = get_all_image_in_folder(folder_str_mouse_on_it)
 
     @classmethod
     @pyg.Profiler
     def get_hex_image_from_stat(  # FIXME: performance bottleneck
-        cls, stats: list, is_mouse_on_it: bool, is_visible: bool
+        cls, stat: str, is_mouse_on_it: bool, is_visible: bool
     ) -> pg.Surface:
-        output_surface = pg.Surface((hex_type.width, hex_type.height), pg.SRCALPHA)
 
-        if stats == []:
-            if not is_mouse_on_it:
-                output_surface.blit(
-                    hex_type.types_mouse_not_on_it[hex_type.DEFAULT], (0, 0)
-                )
-            else:
-                output_surface.blit(
-                    hex_type.types_mouse_on_it[hex_type.DEFAULT], (0, 0)
-                )
+        output_surface = hex_type.image_types[stat].copy()
 
-        else:
-            for stat in stats:
-                if not is_mouse_on_it:
-                    output_surface.blit(hex_type.types_mouse_not_on_it[stat], (0, 0))
-                else:
-                    output_surface.blit(hex_type.types_mouse_on_it[stat], (0, 0))
+        if is_mouse_on_it:
+            output_surface.blit(
+                hex_type.mouse_on_it_image_mask,
+                (0, 0),
+                special_flags=pg.BLEND_ADD,
+            )
 
         if not is_visible:
-            output_surface = output_surface.copy()
             output_surface.blit(
                 fog,
                 (0, 0),
                 special_flags=pg.BLEND_ADD,
             )
+
         return output_surface
 
 

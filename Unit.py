@@ -152,6 +152,7 @@ class Unit:
             self.draw_info()
 
     @classmethod
+    @pyg.Profiler
     def step_all_units(cls):
 
         for unit in Unit.all_units:
@@ -199,14 +200,14 @@ class Unit:
 
         for hex in self.possible_paths:
             hex: Hex
-            hex.stat.append(data.hex_type.UNIT_CAN_GO)
+            hex.stat = data.hex_type.UNIT_CAN_GO
 
     def draw_possible_range(self):
         from hex import Hex
 
         for hex in self.possible_range:
             hex: Hex
-            hex.stat.append(data.hex_type.UNIT_CAN_ATTACK)
+            hex.stat = data.hex_type.UNIT_CAN_ATTACK
 
     def get_hex(self):
         """Get the hex where the unit is"""

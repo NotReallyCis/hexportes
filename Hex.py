@@ -6,14 +6,14 @@ import pyg
 
 class Hex:
 
-    size = 35  # size of one side of an hex
-    width = math.sqrt(3) * size  # pythagorean theorem
-    height = 2 * size  # and that comes from a website
+    size = data.hex_type.size  # size of one side of an hex
+    width = data.hex_type.width
+    height = data.hex_type.height  # and that comes from a website
     vertical_spacing = height
     horizontal_spacing = width * 0.75  # idk why it's 0.75, don't ask me ;_;
 
     map_width = 10
-    map_height = 6
+    map_height = 10
 
     hex_image = pg.transform.scale(data.hex_image, (width, height))
 
@@ -46,8 +46,8 @@ class Hex:
 
         self.unit_on_hex: Unit | None = None
 
-        self.stat = []
-        """Eg: [hex_type.UNIT_CAN_GO]"""
+        self.stat: str = data.hex_type.DEFAULT
+        """Holds the hex_type constants like DEFAULT, CAN_GO ..."""
 
         self.is_visible = True
 
@@ -64,13 +64,12 @@ class Hex:
         for row in Hex.all_hexs:  # idk if it's a row or column
             for hex in row:
                 hex.step()
+        Hex.hex_cursor_is_on = Hex.get_hex_by_xy(pyg.keyboard.mouse_position.xy)
 
     def step(self):
-        if self.is_position_in_hex(pyg.keyboard.mouse_position.xy):
-            Hex.hex_cursor_is_on = self
 
         self.draw()
-        self.stat = []  # reset each time so it only last one tick
+        self.stat = data.hex_type.DEFAULT  # reset each tick so it only last one
 
     def draw(self):
 
@@ -82,7 +81,7 @@ class Hex:
             (self.x, self.y),
         )
 
-    def is_position_in_hex(self, position: tuple[int, int] | pg.Vector2):
+    def is_position_in_hex(self, position: tuple[int, int] | pg.Vector2) -> bool:
         return (
             self.rect.collidepoint(
                 position[0], position[1]
@@ -139,11 +138,28 @@ class Hex:
     @classmethod
     def get_hex_by_wh(cls, w: int, h: int) -> "Hex":
         if Hex.is_wh_inside_border(w, h):
-
             output: Hex = Hex.all_hexs[w][h]
             return output
         else:
             raise ValueError(f"{w},{h} are not inside worlds border")
+
+    @classmethod
+    def get_hex_by_xy(cls, pos: tuple[int, int]):
+        x, y = pos
+        w = math.floor(x / Hex.horizontal_spacing)
+        h = math.floor(y / Hex.vertical_spacing)
+
+        if not Hex.is_wh_inside_border(w, h):
+            return None
+
+        hex = Hex.get_hex_by_wh(w, h)
+        if hex.is_position_in_hex(pos):
+            return hex
+
+        for hex_around in hex.get_hexs_around_hex():
+            if hex_around.is_position_in_hex(pos):
+                return hex_around
+        # okay well i know it doesn't look good but at least it works
 
     def get_hexs_around_hex(self):
         hexs_around: list[Hex] = []
