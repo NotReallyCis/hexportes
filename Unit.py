@@ -1,10 +1,17 @@
 from pyg import camera, draw, get_percentage
 import pygame as pg
 import data, unit_type
+import pyg
 
 
-class Hex:
-    """this is only a class to not depends on hex_file.py for type hints"""
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # resolve the circular import type hinting issue
+    from hex import Hex
+else:
+
+    class Hex:  # empty class replaced with the Hex just below
+        pass
 
 
 class Unit:
@@ -15,13 +22,31 @@ class Unit:
     selected_bad_unit_sound = data.selected_bad_unit_sound
 
     @classmethod
-    def init(cls,team: int):
+    def init(cls, team: int):
         Unit.team_of_main = team
 
         Unit.map_teams_to_color = {Unit.team_of_main: Unit.color_remaining[0]}
         Unit.color_remaining.pop(0)
 
-    def __init__(  # FIXME: way too long
+    def set_click_stat_at_go():
+        data.click_stat.stat = data.click_stat.SELECT_UNIT_DESTINATION
+
+    go_button = pyg.Button(
+        data.go_button,
+        set_click_stat_at_go,
+        pg.Rect(100, 0, 50, 50),
+    )
+
+    def set_click_stat_at_attack():
+        data.click_stat.stat = data.click_stat.SELECT_UNIT_ATTACK
+
+    attack_button = pyg.Button(
+        data.attack_button,
+        set_click_stat_at_attack,
+        pg.Rect(50, 0, 50, 50),
+    )
+
+    def __init__(  # TODO :way too long
         self,
         w: int,
         h: int,
@@ -37,7 +62,6 @@ class Unit:
         self.name = name
 
         self.default_pv = unit_type.unit_type[name][unit_type.PV]
-
         if pv_of_unit == None:
             self.pv = self.default_pv
         else:
@@ -67,7 +91,10 @@ class Unit:
         self.team = team
         self.set_color()
         self.set_image()
-
+        if self.get_hex().unit_on_hex != None:
+            raise ValueError(
+                f"hex({w,h}) is arleady taken by another unit, can't generate here"
+            )
         self.get_hex().unit_on_hex = self
 
         self.get_possible_paths()
@@ -95,7 +122,8 @@ class Unit:
         self.get_hex().unit_on_hex = None
         Unit.all_units.remove(self)
 
-    def destroy_all_units():
+    @classmethod
+    def destroy_all_units(cls):
         for unit in Unit.all_units:
             unit: Unit
             unit.destroy()
@@ -123,14 +151,15 @@ class Unit:
             self.draw()
             self.draw_info()
 
-    def step_all_units():
+    @classmethod
+    def step_all_units(cls):
 
         for unit in Unit.all_units:
             unit: Unit
             unit.step()
 
     def draw(self):
-        from Hex import Hex
+        from hex import Hex
 
         x, y = Hex.get_xy_by_wh(self.w, self.h)
         camera(self.image, (x, y))
@@ -166,21 +195,22 @@ class Unit:
         camera(ammo_info, (x, y + 5))
 
     def draw_possible_paths(self):
-        from Hex import Hex
+        from hex import Hex
 
         for hex in self.possible_paths:
             hex: Hex
             hex.stat.append(data.hex_type.UNIT_CAN_GO)
 
     def draw_possible_range(self):
-        from Hex import Hex
+        from hex import Hex
 
         for hex in self.possible_range:
             hex: Hex
             hex.stat.append(data.hex_type.UNIT_CAN_ATTACK)
 
     def get_hex(self):
-        from Hex import Hex
+        """Get the hex where the unit is"""
+        from hex import Hex
 
         hex: Hex = Hex.get_hex_by_wh(self.w, self.h)
         return hex
@@ -189,7 +219,7 @@ class Unit:
         return (self.get_hex().x, self.get_hex().y)
 
     def move_to(self, w: int, h: int):
-        from Hex import Hex
+        from hex import Hex
 
         hex_to_move: Hex = Hex.get_hex_by_wh(w, h)
 
@@ -198,29 +228,27 @@ class Unit:
             or not self.have_enough_fuel_to_go_to(hex_to_move)
         ):
             self.unselect()
+            return
 
-        else:
+        self.get_hex().unit_on_hex = None
+        hex_to_move.unit_on_hex = self
 
-            self.get_hex().unit_on_hex = None
-            hex_to_move.unit_on_hex = self
+        self.w = w
+        self.h = h
 
-            self.w = w
-            self.h = h
+        movement_point_consumed = self.movement_point - self.possible_paths[hex_to_move]
+        self.fuel -= movement_point_consumed
+        self.movement_point = self.possible_paths[hex_to_move]
 
-            movement_point_consumed = (
-                self.movement_point - self.possible_paths[hex_to_move][1]
-            )
-            self.fuel -= movement_point_consumed
-            self.movement_point = self.possible_paths[hex_to_move][1]
-
-            self.get_possible_paths()
-            self.get_possible_range()
-            self.get_possible_view_range()
+        self.get_possible_paths()
+        self.get_possible_range()
+        self.get_possible_view_range()
 
     def have_enough_fuel_to_go_to(self, hex: "Hex"):
         if hex not in self.possible_paths.keys():
             raise ValueError("hex is unreacheable")
-        movement_point_consumed = self.movement_point - self.possible_paths[hex][1]
+
+        movement_point_consumed = self.movement_point - self.possible_paths[hex]
         fuel_left = self.fuel - movement_point_consumed
         return fuel_left >= 0
 
@@ -245,6 +273,9 @@ class Unit:
             Unit.unit_selected = self
             data.click_stat.stat = data.click_stat.SELECT_UNIT_DESTINATION
 
+        Unit.attack_button.is_visible = True
+        Unit.go_button.is_visible = True
+
     def unselect(self):
         if not self.is_selected:
             raise ValueError(
@@ -255,69 +286,66 @@ class Unit:
             self.is_selected = False
             Unit.unit_selected = None
             data.click_stat.stat = data.click_stat.SELECT_UNIT
+        Unit.attack_button.is_visible = False
+        Unit.go_button.is_visible = False
 
     def get_possible_paths(self):
-        self.possible_paths = {}  # tile_to_go:(path,movement_point_left)
-        start_path = []
-        self.search_hex(self.get_hex(), self.movement_point, start_path, True, False)
+        """get all the possible tiles you can go"""
+        movement_point = min(self.movement_point, self.fuel)
+
+        self.possible_paths = self.search_hex(self.get_hex(), movement_point, True)
 
     def get_possible_range(self):
+        """get all the possible tiles you can shoot to"""
         self.possible_range = []
-        start_path = []
-        self.search_hex(self.get_hex(), self.range, start_path, False, False)
+        self.search_hex(self.get_hex(), self.range, False)
 
     def get_possible_view_range(self):
-        start_path = []
-        self.search_hex(self.get_hex(), self.view_range, start_path, False, True)
+        """get all the possible tiles you can view"""
+        visible_hexs = self.search_hex(self.get_hex(), self.view_range, False)
+        for hex in visible_hexs:
+            hex.is_visible = True
 
     def search_hex(
         self,
-        hex: Hex,
+        start_hex: Hex,
         movement_point_possessed: int,
-        path: list,
-        is_calculating_movement: bool,
-        is_calculating_view_range: bool,
+        is_hex_weight_matter: bool,
     ):
-        from Hex import Hex
+        """_summary_
 
-        hex: Hex = hex  # he's visibly happy if you reassing the value with equal
+        Args:
+            hex (Hex): The hex you start from
+            movement_point_possessed (int): _description_
+            path (list): input an empty list at beginning
+            is_hex_weight_matter (bool): does the weight of the hex you go to are counted
+        """
+        hexs_to_calculate: list[tuple[Hex, int]] = [
+            (start_hex, movement_point_possessed)
+        ]
 
-        path = path.copy()
-        path.append(hex)
+        hexs_calculated: dict[Hex, int] = {}
 
-        for hex_around in hex.get_hexs_around_hex():
-            hex_around: Hex
-            if is_calculating_movement:
-                movement_point_needed = hex_around.movement_point_needed
-            else:
-                movement_point_needed = 1  # default value for range
+        while True:
+            if hexs_to_calculate == []:  # on end
+                return hexs_calculated
 
-            if (
-                movement_point_possessed >= movement_point_needed
-                and self.is_path_from_node_have_not_been_calculated(
-                    hex_around, movement_point_possessed - movement_point_needed
-                )
-            ):
-                self.search_hex(
-                    hex_around,
-                    movement_point_possessed - movement_point_needed,
-                    path,
-                    is_calculating_movement,
-                    is_calculating_view_range,
-                )
+            hex_calculating, movement_point = hexs_to_calculate[0]
+            hexs_to_calculate.pop(0)
 
-        if is_calculating_movement:
-            self.possible_paths[hex] = (path, movement_point_possessed)
-        else:
-            if is_calculating_view_range:
+            hexs_calculated[hex_calculating] = movement_point
 
-                hex.is_visible = True
+            for hex_around in hex_calculating.get_hexs_around_hex():
+                if hex_around in hexs_calculated:
+                    continue
 
-            elif hex not in self.possible_range:
-                self.possible_range.append(hex)
+                hex_around_weight: int = 1
+                if is_hex_weight_matter:
+                    hex_around_weight = hex_around.weight
 
-    def is_path_from_node_have_not_been_calculated(self, hex: Hex, movement_point: int):
-        """it checks if the coordinate has been calculated arlready with a better path"""
-        return (hex not in self.possible_paths.keys()) or (
-            self.possible_paths[hex][1] < movement_point
-        )
+                movement_point_after_hex_around = movement_point - hex_around_weight
+                """number of movement point you have after going to the hex_around"""
+                if movement_point_after_hex_around > 0:
+                    hexs_to_calculate.append(
+                        (hex_around, movement_point_after_hex_around)
+                    )

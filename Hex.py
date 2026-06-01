@@ -1,7 +1,7 @@
 import pygame as pg
 import math, data, unit_type
-from Unit import Unit
-from pyg import keyboard, camera, Button, is_even
+from unit import Unit
+import pyg
 
 
 class Hex:
@@ -12,8 +12,8 @@ class Hex:
     vertical_spacing = height
     horizontal_spacing = width * 0.75  # idk why it's 0.75, don't ask me ;_;
 
-    map_width = 15
-    map_height = 10
+    map_width = 10
+    map_height = 6
 
     hex_image = pg.transform.scale(data.hex_image, (width, height))
 
@@ -21,7 +21,7 @@ class Hex:
 
     mask = pg.mask.from_surface(hex_image, 1)
 
-    all_hexs = []
+    all_hexs: list[list["Hex"]] = []
 
     hex_cursor_is_on = None
 
@@ -42,28 +42,31 @@ class Hex:
 
         self.image = image
 
-        self.movement_point_needed = movement_point_needed
+        self.weight = movement_point_needed
 
         self.unit_on_hex: Unit | None = None
 
         self.stat = []
+        """Eg: [hex_type.UNIT_CAN_GO]"""
 
         self.is_visible = True
 
-    def on_end_of_turn():
+    @classmethod
+    def on_end_of_turn(cls):
         for line in Hex.all_hexs:
             for hex in line:
                 hex: Hex
                 hex.is_visible = False
 
-    def step_to_all_hex():
-        for w in range(len(Hex.all_hexs)):
-            for hex in Hex.all_hexs[w]:
-                hex: Hex
+    @classmethod
+    @pyg.Profiler
+    def step_to_all_hex(cls):
+        for row in Hex.all_hexs:  # idk if it's a row or column
+            for hex in row:
                 hex.step()
 
     def step(self):
-        if self.is_position_in_hex(keyboard.mouse_position.xy):
+        if self.is_position_in_hex(pyg.keyboard.mouse_position.xy):
             Hex.hex_cursor_is_on = self
 
         self.draw()
@@ -71,8 +74,8 @@ class Hex:
 
     def draw(self):
 
-        is_cursor_on_self = Hex.hex_cursor_is_on == self
-        camera(
+        is_cursor_on_self = Hex.hex_cursor_is_on is self
+        pyg.camera(
             data.hex_type.get_hex_image_from_stat(
                 self.stat, is_cursor_on_self, self.is_visible
             ),
@@ -87,8 +90,14 @@ class Hex:
             and (
                 Hex.mask.get_at((position[0] - self.x, position[1] - self.y))
             )  # pixel perfect
-            and (not Button.is_position_in_zone_covered(position[0], position[1]))
+            and (not pyg.Button.is_position_in_zone_covered(position[0], position[1]))
         )
+
+    @staticmethod
+    @pyg.keyboard.execute_on_click
+    def click_hex_selected():
+        if not pyg.Button.is_position_in_zone_covered(*pyg.keyboard.mouse_position.xy):
+            Hex.hex_cursor_is_on.clicked()
 
     def clicked(self):
         match data.click_stat.stat:
@@ -110,32 +119,35 @@ class Hex:
                     Unit.unit_selected.attack(self.unit_on_hex)
                     data.click_stat.stat = data.click_stat.SELECT_UNIT_DESTINATION
 
-    def create_hexs_map():
+    @classmethod
+    def create_hexs_map(cls):
         for w in range(Hex.map_width):
             Hex.all_hexs.append([])
             for h in range(Hex.map_height):
                 Hex.all_hexs[w].append(Hex(w, h, Hex.hex_image))
         return Hex.all_hexs[w]
 
-    def get_xy_by_wh(w: int, h: int):
+    @classmethod
+    def get_xy_by_wh(cls, w: int, h: int):
         x = w * Hex.horizontal_spacing
-        if is_even(w):
+        if pyg.is_even(w):
             y = h * Hex.vertical_spacing
         else:
             y = (h * Hex.vertical_spacing) + (Hex.vertical_spacing / 2)
         return round(x), round(y)
 
-    def get_hex_by_wh(w: int, h: int) -> "Hex":
+    @classmethod
+    def get_hex_by_wh(cls, w: int, h: int) -> "Hex":
         if Hex.is_wh_inside_border(w, h):
 
             output: Hex = Hex.all_hexs[w][h]
             return output
         else:
-            raise ValueError("{w},{h} are not inside worlds border")
+            raise ValueError(f"{w},{h} are not inside worlds border")
 
     def get_hexs_around_hex(self):
-        hexs_around = []
-        if is_even(self.w):
+        hexs_around: list[Hex] = []
+        if pyg.is_even(self.w):
             wh_hexs_around = [
                 (self.w - 1, self.h),
                 (self.w - 1, self.h - 1),
@@ -163,7 +175,8 @@ class Hex:
 
         return hexs_around
 
-    def is_wh_inside_border(w: int, h: int):
+    @classmethod
+    def is_wh_inside_border(cls, w: int, h: int):
         return (w >= 0 and w < Hex.map_width) and (h >= 0 and h < Hex.map_height)
 
     def debug_highlight(self, highlight_image: pg.Surface = data.hex_highlight):
@@ -184,7 +197,8 @@ class Hex:
         else:
             return None
 
-    def get_all_hexs__str__():
+    @classmethod
+    def get_all_hexs__str__(cls):
         output = []
         for w in range(len(Hex.all_hexs)):
             output.append([])
@@ -193,12 +207,14 @@ class Hex:
                 output[w].append(hex.get_representation())
         return output
 
-    def load_all_hexs__str__(all_hexs__str__: list[list]):
+    @classmethod
+    def load_all_hexs__str__(cls, all_hexs__str__: list[list]):
         for w in range(len(all_hexs__str__)):
             for h, hex__str__ in enumerate(all_hexs__str__[w]):
                 Hex.load_hex__str__(w, h, hex__str__)
 
-    def load_hex__str__(w: int, h: int, string_to_load: tuple | None):
+    @classmethod
+    def load_hex__str__(cls, w: int, h: int, string_to_load: tuple | None):
         hex: Hex = Hex.get_hex_by_wh(w, h)
 
         if string_to_load is None:

@@ -1,28 +1,27 @@
-from data import is_command_pressed
 from pyg import keyboard, camera
 
 camera_speed = 6
 
 
-def horizontal_camera_movement(direction: "int[-1, 0, 1]"):
+def horizontal_camera_movement(direction: int):
     camera.movement.x = direction * camera_speed
 
 
-def vertical_camera_movement(direction: "int[-1, 0, 1]"):
+def vertical_camera_movement(direction: int):
     camera.movement.y = direction * camera_speed
 
 
 def step():
-    if is_command_pressed("up"):
+    if keyboard.is_key_pressed("z"):
         vertical_camera_movement(-1)
-    elif is_command_pressed("down"):
+    elif keyboard.is_key_pressed("s"):
         vertical_camera_movement(1)
     else:
         vertical_camera_movement(0)
 
-    if is_command_pressed("left"):
+    if keyboard.is_key_pressed("q"):
         horizontal_camera_movement(-1)
-    elif is_command_pressed("right"):
+    elif keyboard.is_key_pressed("d"):
         horizontal_camera_movement(1)
     else:
         horizontal_camera_movement(0)

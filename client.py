@@ -1,13 +1,17 @@
-import socket, random, json
+import socket, random, json, threading
+import pyg, data
+import pygame as pg
 
 intro_length = 20
-# the intro length is the number of number that is sent at start of message to give the length of the message
-# it should be the same in the Server and in the client
+""" the intro length is the number of number that is sent at start of message to give the length of the message
+it should be the same in the Server and in the client"""
+
+has_receive_message_from_server: bool
 
 
 class Server:
 
-    address = "172.25.87.200"
+    address = socket.gethostbyname(socket.gethostname())
     port = 5000
 
 
@@ -19,7 +23,8 @@ class Client:
     socket_to_server: socket.socket = None
     id: int
 
-    def init():
+    @classmethod
+    def init(cls):
 
         print("port=", Client.port, "addr=", Client.address)
 
@@ -29,23 +34,26 @@ class Client:
 
         Client.get_intro_data_from_server()
 
-    def connect(port: int, addr: str = socket.gethostbyname(socket.gethostname())):
+    @classmethod
+    def connect(cls, port: int, addr: str = socket.gethostbyname(socket.gethostname())):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.connect((addr, port))
         except ConnectionRefusedError:
             raise ConnectionRefusedError(
-                "Coudln't connect to the Server, most likely due to the Server not being launched"
+                "Coudln't connect to the server, most likely due to the server not being launched"
             )
         return s
 
-    def get_intro_data_from_server():
+    @classmethod
+    def get_intro_data_from_server(cls):
         intro_data = Client.receive_message()
 
         intro_data: tuple = json.loads(intro_data)
         Client.id = intro_data[0]
 
-    def get_0_before_int(number: int | str, length_expected: int) -> str:
+    @classmethod
+    def get_0_before_int(cls, number: int | str, length_expected: int) -> str:
         """get 0 before the int so it correspond to a certain length (eg: input 1,4 it will output 0001)"""
         if isinstance(number, int):
             number = str(number)
@@ -60,7 +68,8 @@ class Client:
 
         return number
 
-    def send(info: str, intro_length: int = 20):
+    @classmethod
+    def send(cls, info: str, intro_length: int = 20):
         """the intro length is the number of number that is sent at start of message to give the length of the message \n
         it should be the same in the Server and in the client"""
         info = str(info)
@@ -68,7 +77,8 @@ class Client:
 
         Client.socket_to_server.send(output_to_send.encode("utf-8"))
 
-    def receive_message(intro_length: int = 20):
+    @classmethod
+    def receive_message(cls, intro_length: int = 20):
         """the intro length is the number of number that is sent at start of message to give the length of the message \n
         it should be the same in the Server and in the client"""
 
@@ -86,12 +96,64 @@ class Client:
 
         return output
 
-    def disconnect():
+    @classmethod
+    def disconnect(cls):
         print("disconnected :<")
         Client.socket_to_server.shutdown(1)
         Client.socket_to_server.close()
 
 
-def init_all():
+def start_waiting_loop():
+    """start While loop with the loading screen waiting for an answer of the server"""
 
+    while not has_receive_message_from_server:
+        pg.display.get_surface().blit(data.background_waiting_image, (0, 0))
+
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                pyg.shutdown()
+
+        pg.display.flip()
+        pg.display.get_surface().fill((0, 0, 0))
+        pyg.clock.tick(pyg.fps)
+
+
+def receive_and_send_maps_info(is_sending_data: bool):
+    """send (if is_sending_data is True) and receive the map info for the server
+
+    Args:
+        is_sending_data (bool): give or not the own map to the server
+    """
+    if is_sending_data:
+        send_map_info_to_server()
+
+    from hex import Hex
+    from unit import Unit
+
+    Unit.destroy_all_units()  # it must be between the send and the receive to reset
+    Hex.on_end_of_turn()
+    global has_receive_message_from_server
+    has_receive_message_from_server = False
+    thread_discussion_server = threading.Thread(target=receive_map_info_from_server)
+    thread_discussion_server.daemon = True  # thread will stop when main quit
+    thread_discussion_server.start()
+
+
+def receive_map_info_from_server():
+    from hex import Hex
+
+    uncoded_message = json.loads(Client.receive_message())
+    Hex.load_all_hexs__str__(uncoded_message)
+
+    global has_receive_message_from_server
+    has_receive_message_from_server = True
+
+
+def send_map_info_to_server():
+    from hex import Hex
+
+    Client.send(json.dumps(Hex.get_all_hexs__str__()))
+
+
+def init_all():
     Client.init()

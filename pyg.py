@@ -35,7 +35,7 @@ def get_words(text: str) -> list[str]:
 
 
 def convert_second(s: float, precision: int = 3):
-    """return an string with the correct mesurement. The precision is the number of value after the coma"""
+    """return a string with the correct mesurement. The precision is the number of value after the coma (eg: convert s to ms)"""
     if s > 1:
         return str(round(s, precision)) + "s"
     elif s > 0.001:
@@ -65,7 +65,7 @@ class Interval:
 
 
 class Cooldown:
-    """generate a cooldown of tick easely"""
+    """generate a cooldown easely"""
 
     cooldowns_to_step: list["Cooldown"] = []
 
@@ -100,6 +100,8 @@ class Cooldown:
 
 
 class Profiler:
+    """Count the time a certain function was used by using it as a decorator. Does not work if methods with the self arguments."""
+
     all_functions: dict["Profiler", list[int]] = {}
     precision = 3
     is_active = True
@@ -125,26 +127,36 @@ class Profiler:
 
     @classmethod
     def on_end(cls):
-        if Profiler.is_active:
-            for profil in Profiler.all_functions.keys():
-                time_values = Profiler.all_functions[profil]
-                if time_values != []:
-                    average_time = sum(time_values) / len(time_values)
-                    basic_info = f"""function: {profil.f.__qualname__ }: 
-                        average time per call: {convert_second(average_time)}
-                        calls :{len(time_values)}"""
-                    per_tick_info = f"""
-                        calls per tick: {len(time_values)/Profiler.ticks_number} 
-                        average time per tick: {convert_second(average_time*(len(time_values)/Profiler.ticks_number))}"""
-                    if len(time_values) / Profiler.ticks_number == 1:
-                        print(basic_info)
-                    else:
-                        print(basic_info + per_tick_info)
+        if not Profiler.is_active:
+            return
+        for profil in Profiler.all_functions.keys():
+            time_values = Profiler.all_functions[profil]
+            if time_values == []:
+                continue
+
+            number_of_calls = len(time_values)
+            average_time_per_call = sum(time_values) / number_of_calls
+            average_time_per_tick = average_time_per_call * (
+                number_of_calls / Profiler.ticks_number
+            )
+
+            basic_info = f"""function: {profil.f.__qualname__ }: 
+                average time per call: {convert_second(average_time_per_call)}
+                calls :{number_of_calls}
+                calcul time percentage (not accurate): {round((average_time_per_tick/dt) * 100)}%"""
+
+            per_tick_info = f"""
+                calls per tick: {number_of_calls/Profiler.ticks_number} 
+                average time per tick: {convert_second(average_time_per_call*(number_of_calls/Profiler.ticks_number))}"""
+
+            if number_of_calls / Profiler.ticks_number == 1:
+                print(basic_info)
+            else:
+                print(basic_info + per_tick_info)
 
 
 class keyboard:
     pressed_keys = []
-    clicks_pressed = []
     mouse_position = pg.Vector2(0, 0)
     true_mouse_position = pg.Vector2(0, 0)
     functions_to_execute_on_click = []
@@ -167,7 +179,7 @@ class keyboard:
             key = pg.key.name(key)
         keyboard.pressed_keys.append(key)
 
-        if key in keyboard.key_map_execute_once.keys():
+        if key in keyboard.key_map_execute_once:
 
             for function_and_args in keyboard.key_map_execute_once[key]:
                 function, args = function_and_args

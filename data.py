@@ -1,3 +1,47 @@
+import pygame as pg
+import pyg, warnings
+
+
+def get_all_image_in_folder(folder_str: str):
+    """the return format is a dict with filename (relative to the folder):image"""
+    import os
+
+    output = {}
+    folder = os.fsencode(folder_str)
+    for file in os.listdir(folder):
+        file_name = os.fsdecode(file)
+        output[file_name] = load(folder_str + "/" + file_name)
+    return output
+
+
+def load(
+    path: str,
+    colorkey: tuple[int, int, int] = None,
+    size: tuple[int, int] = None,
+    in_asset: bool = True,
+    end: str = ".png",
+):
+    """an elegant pg.image.load"""
+    if in_asset and not path.startswith("assets/"):
+        path = "assets/" + path
+
+    if not path.endswith(end):
+        path += end
+
+    output = pg.image.load(path)
+    if colorkey is not None:
+        output.set_colorkey(colorkey)
+    if size is not None:
+        output = pg.transform.scale(output, size)
+    if pg.display.get_active():
+        return output.convert_alpha()
+    else:
+        warnings.warn(
+            "The Display wasn't initiated before data was imported", ImportWarning
+        )
+        return output
+
+
 ####### teams color ######
 
 
@@ -18,37 +62,8 @@ def get_all_colors():
 all_colors = get_all_colors()
 
 
-######## key map ########
-# FIXME: remove that
-map_of_key = {
-    "up": "z",
-    "down": "s",
-    "left": "q",
-    "right": "d",
-    "end_of_turn": "f5",
-}
-
-from pyg import keyboard
-
-
-def is_command_pressed(command: str):
-    return keyboard.is_key_pressed(map_of_key[command])
-
-
-def create_function_on_key_map(
-    command: str, function: "function", execute_only_once: bool = True
-):
-    keyboard.set_new_key_map(
-        map_of_key[command],
-        execute_only_once,
-        function,
-    )
-
-
 ######## sound #######
 
-
-import pygame as pg
 
 pg.mixer.init()
 selected_bad_unit_sound = pg.mixer.Sound("assets/sound/confirm_style_4_004.wav")
@@ -70,21 +85,10 @@ class hex_type:
     width = math.sqrt(3) * size  # pythagorean theorem
     height = 2 * size  # and that comes from a website
 
-    luminosity_added_when_mouse_on_hex = 40
+    luminosity_added_when_mouse_on_hex = 50
 
     folder_str_mouse_not_on_it = "assets/hex_stat/hex_stat_when_mouse_not_on_it"
     folder_str_mouse_on_it = "assets/hex_stat/hex_stat_when_mouse_on_it"
-
-    def get_all_image_in_folder(folder_str: str):
-        """the return format is a dict with filename (relative to the folder):image"""
-        import os
-
-        output = {}
-        folder = os.fsencode(folder_str)
-        for file in os.listdir(folder):
-            file_name = os.fsdecode(file)
-            output[file_name] = pg.image.load(folder_str + "/" + file_name)
-        return output
 
     DEFAULT = "hex.png"
     UNIT_CAN_GO = "hex_can_go.png"
@@ -97,11 +101,12 @@ class hex_type:
         types_mouse_not_on_it[key] = image
     types_mouse_on_it = get_all_image_in_folder(folder_str_mouse_on_it)
 
-    def get_hex_image_from_stat(
-        stats: list, is_mouse_on_it: bool, is_visible: bool
+    @classmethod
+    @pyg.Profiler
+    def get_hex_image_from_stat(  # FIXME: performance bottleneck
+        cls, stats: list, is_mouse_on_it: bool, is_visible: bool
     ) -> pg.Surface:
-        output_surface = pg.Surface((hex_type.width, hex_type.height))
-        output_surface.set_colorkey(pg.Color(0, 0, 0))  # transparent
+        output_surface = pg.Surface((hex_type.width, hex_type.height), pg.SRCALPHA)
 
         if stats == []:
             if not is_mouse_on_it:
@@ -132,28 +137,25 @@ class hex_type:
 
 ### image ###
 
-fog = pg.image.load("assets/image/fog_hex.png")
+fog = load("assets/image/fog_hex.png")
 
 
-hex_highlight = pg.image.load("assets/essentials-4xgames-tileset/tile-farm-sown.png")
+hex_highlight = load("assets/essentials-4xgames-tileset/tile-farm-sown.png")
 
-hex_image = pg.image.load("assets/hex_stat/hex_stat_when_mouse_not_on_it/hex.png")
+hex_image = load("assets/hex_stat/hex_stat_when_mouse_not_on_it/hex.png")
 
-next_turn_button = pg.image.load("assets/image/end_turn_button.png")
+next_turn_button = load("assets/image/end_turn_button.png")
 
-go_button = pg.image.load("assets/image/go_button.png")
-attack_button = pg.image.load("assets/image/attack_button.png")
+go_button = load("assets/image/go_button.png")
+attack_button = load("assets/image/attack_button.png")
 
-background_waiting_image = pg.transform.scale(
-    pg.image.load("assets/image/placeholder_image_waiting.png"),
-    pg.display.get_surface().get_size(),
-)
+if pg.display.get_active():
+    background_waiting_image = pg.transform.scale(
+        load("assets/image/placeholder_image_waiting.png"),
+        pg.display.get_surface().get_size(),
+    )
 
-fuel_icon = pg.image.load("assets/image/fuel_icon.png")
-
-### map ###
-
-empty_map_str = open("developpement_addon/map.txt", "r").read()
+fuel_icon = load("assets/image/fuel_icon.png")
 
 
 ### click stat ###

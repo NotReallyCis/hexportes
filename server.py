@@ -1,4 +1,4 @@
-import socket, threading, json, data
+import socket, threading, json
 
 intro_length = 20
 # the intro length is the number of number that is sent at start of message to give the length of the message
@@ -15,11 +15,13 @@ class Server:
     socket_of_server.listen(1)
     print("listening on", port, ",", address)
 
-    def loop_to_accept():
+    @classmethod
+    def loop_to_accept(cls):
         client_socket, client_address = Server.socket_of_server.accept()
         Server.create_client(client_socket, client_address)
 
-    def create_client(client_socket: socket.socket, client_address):
+    @classmethod
+    def create_client(cls, client_socket: socket.socket, client_address):
         thread_of_discussion = threading.Thread(
             target=Client,
             args=(
@@ -30,8 +32,9 @@ class Server:
         thread_of_discussion.start()
         # not ".run" because ".start" have to be called at least once per thread
 
-    def destroy_disconnected_units(team_disconnected: int):
-        map_info = json.loads(Client.all_map_info)
+    @classmethod
+    def destroy_disconnected_units(cls, team_disconnected: int):
+        map_info: list[list] = json.loads(Client.all_map_info)
         for x, line in enumerate(map_info):
             for y, unit in enumerate(line):
                 if unit != None:
@@ -46,7 +49,7 @@ class Client:
 
     all_clients = {}
 
-    all_map_info: str = data.empty_map_str
+    all_map_info: str = open("developpement_addon/map.txt", "r").read()
     max_team_given = 0
 
     def __init__(self, client_socket: socket.socket, client_address: str):
