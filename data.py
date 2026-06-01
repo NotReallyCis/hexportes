@@ -110,30 +110,6 @@ class hex_type:
         image_types[key] = image
     types_mouse_on_it = get_all_image_in_folder(folder_str_mouse_on_it)
 
-    @classmethod
-    @pyg.Profiler
-    def get_hex_image_from_stat(  # FIXME: performance bottleneck
-        cls, stat: str, is_mouse_on_it: bool, is_visible: bool
-    ) -> pg.Surface:
-
-        output_surface = hex_type.image_types[stat].copy()
-
-        if is_mouse_on_it:
-            output_surface.blit(
-                hex_type.mouse_on_it_image_mask,
-                (0, 0),
-                special_flags=pg.BLEND_ADD,
-            )
-
-        if not is_visible:
-            output_surface.blit(
-                fog,
-                (0, 0),
-                special_flags=pg.BLEND_ADD,
-            )
-
-        return output_surface
-
 
 ### image ###
 

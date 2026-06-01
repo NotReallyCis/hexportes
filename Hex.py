@@ -8,14 +8,17 @@ class Hex:
 
     size = data.hex_type.size  # size of one side of an hex
     width = data.hex_type.width
-    height = data.hex_type.height  # and that comes from a website
+    height = data.hex_type.height
     vertical_spacing = height
     horizontal_spacing = width * 0.75  # idk why it's 0.75, don't ask me ;_;
 
-    map_width = 10
-    map_height = 10
+    map_width = 100
+    map_height = 100
 
     hex_image = pg.transform.scale(data.hex_image, (width, height))
+    all_hexs_surface = pg.Surface(
+        (width * map_width, height * map_height + (height / 2))
+    )
 
     image_placeholder_cursor_on_hex = hex_image
 
@@ -40,7 +43,7 @@ class Hex:
         self.height = Hex.height
         self.rect = pg.Rect(self.x, self.y, self.width, self.height)
 
-        self.image = image
+        Hex.all_hexs_surface.blit(image, self.get_xy_by_wh(self.w, self.h))
 
         self.weight = movement_point_needed
 
@@ -64,11 +67,15 @@ class Hex:
         for row in Hex.all_hexs:  # idk if it's a row or column
             for hex in row:
                 hex.step()
+
+        Hex.draw_all()
         Hex.hex_cursor_is_on = Hex.get_hex_by_xy(pyg.keyboard.mouse_position.xy)
 
-    def step(self):
+    @classmethod
+    def draw_all(cls):
+        pyg.camera(Hex.all_hexs_surface, (0, 0), 1)
 
-        self.draw()
+    def step(self):
         self.stat = data.hex_type.DEFAULT  # reset each tick so it only last one
 
     def draw(self):
