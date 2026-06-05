@@ -6,21 +6,23 @@ import pyg
 
 class Hex:
 
-    size = data.hex_type.size  # size of one side of an hex
-    width = data.hex_type.width
-    height = data.hex_type.height
-    vertical_spacing = height
-    horizontal_spacing = width * 0.75  # idk why it's 0.75, don't ask me ;_;
+    width = 64
+    height = 64
+    vertical_spacing = 56
+    horizontal_spacing = 48  # idk why it's 0.75, don't ask me ;_;
 
     map_width = 100
     map_height = 100
 
-    hex_image = pg.transform.scale(data.hex_image, (width, height))
+    hex_image = data.hex_image
+    fog = data.fog
+
     all_hexs_surface = pg.Surface(
         (width * map_width, height * map_height + (height / 2))
     )
-
-    image_placeholder_cursor_on_hex = hex_image
+    all_hexs_fog_surface = pg.Surface(
+        (width * map_width, height * map_height + (height / 2))
+    )
 
     mask = pg.mask.from_surface(hex_image, 1)
 
@@ -35,10 +37,6 @@ class Hex:
         self.h = h
         self.x, self.y = Hex.get_xy_by_wh(self.w, self.h)
 
-        self.type = data.hex_type
-
-        self.size = Hex.size
-
         self.width = Hex.width
         self.height = Hex.height
         self.rect = pg.Rect(self.x, self.y, self.width, self.height)
@@ -49,50 +47,53 @@ class Hex:
 
         self.unit_on_hex: Unit | None = None
 
-        self.stat: str = data.hex_type.DEFAULT
-        """Holds the hex_type constants like DEFAULT, CAN_GO ..."""
-
-        self.is_visible = True
+        self.is_visible = True # set to True first because add_fog won't add fog if it's False  
+        self.add_fog()
 
     @classmethod
     def on_end_of_turn(cls):
         for line in Hex.all_hexs:
             for hex in line:
                 hex: Hex
-                hex.is_visible = False
+                hex.add_fog()
 
     @classmethod
     @pyg.Profiler
     def step_to_all_hex(cls):
-        for row in Hex.all_hexs:  # idk if it's a row or column
-            for hex in row:
-                hex.step()
-
         Hex.draw_all()
         Hex.hex_cursor_is_on = Hex.get_hex_by_xy(pyg.keyboard.mouse_position.xy)
 
     @classmethod
     def draw_all(cls):
         pyg.camera(Hex.all_hexs_surface, (0, 0), 1)
+        pyg.camera(Hex.all_hexs_fog_surface, (0, 0), 2, special_flags=pg.BLEND_RGB_ADD)
 
-    def step(self):
-        self.stat = data.hex_type.DEFAULT  # reset each tick so it only last one
+    def add_fog(self):
+        if self.is_visible == False:
+            return
+        Hex.all_hexs_fog_surface.blit(Hex.fog, (self.x, self.y))
+        self.is_visible = False
 
-    def draw(self):
-
-        is_cursor_on_self = Hex.hex_cursor_is_on is self
-        pyg.camera(
-            data.hex_type.get_hex_image_from_stat(
-                self.stat, is_cursor_on_self, self.is_visible
-            ),
-            (self.x, self.y),
+    def remove_fog(self):
+        if self.is_visible == True:
+            return
+        Hex.mask.to_surface(
+            Hex.all_hexs_fog_surface,
+            setcolor=(0, 0, 0),
+            unsetcolor=None,
+            dest=(self.x, self.y),
         )
+        self.is_visible = True
+
+    def draw_surface_on_top(self, surface: pg.Surface, special_flags: int = 0):
+        """blit a custom surface on top of the hex (eg: can_go_tile)"""
+        pyg.camera(surface, (self.x, self.y), -99, False, False, special_flags)
 
     def is_position_in_hex(self, position: tuple[int, int] | pg.Vector2) -> bool:
         return (
             self.rect.collidepoint(
                 position[0], position[1]
-            )  # check for collision with the rect so it's optimized
+            )  # check for collision with the rect first for optimisation
             and (
                 Hex.mask.get_at((position[0] - self.x, position[1] - self.y))
             )  # pixel perfect
@@ -201,9 +202,6 @@ class Hex:
     @classmethod
     def is_wh_inside_border(cls, w: int, h: int):
         return (w >= 0 and w < Hex.map_width) and (h >= 0 and h < Hex.map_height)
-
-    def debug_highlight(self, highlight_image: pg.Surface = data.hex_highlight):
-        Unit(self.w, self.h, highlight_image, 0)
 
     def __str__(self):
         if self.unit_on_hex == None:

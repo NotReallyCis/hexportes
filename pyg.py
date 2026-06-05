@@ -359,23 +359,32 @@ class camera:
 
     @classmethod
     def reset_depths(cls):
-        camera.all_images: list[list[tuple[pg.Surface, tuple[int, int]]]] = []
+        camera.all_images: list[list[tuple[pg.Surface, tuple[int, int], int]]] = []
         for _ in range(camera.max_depth + 1):
             camera.all_images.append([])
 
-    @classmethod
-    def draw_all_image(cls):
+    @Profiler
+    @staticmethod
+    def draw_all_image():
         for depth_layer in camera.all_images:
             if depth_layer == []:
                 continue
-            for i, (surface, position, is_blocked_on_screen) in enumerate(depth_layer):
+            for i, (
+                surface,
+                position,
+                is_blocked_on_screen,
+                special_flags,
+            ) in enumerate(depth_layer):
+
                 if not is_blocked_on_screen:
-                    depth_layer[i] = surface, (
-                        position[0] - camera.rect.x,
-                        position[1] - camera.rect.y,
+                    depth_layer[i] = (
+                        surface,
+                        (position[0] - camera.rect.x, position[1] - camera.rect.y),
+                        None,
+                        special_flags,
                     )
                 else:
-                    depth_layer[i] = surface, position
+                    depth_layer[i] = surface, position, None, special_flags
             camera.screen.blits(depth_layer)
 
     def __init__(
@@ -385,6 +394,7 @@ class camera:
         depth: int = -100,
         is_blocked_on_screen: bool = False,
         is_position_the_center: bool = False,
+        special_flags: int = 0,
     ):
         """For rendering image on screen, all included.
 
@@ -414,7 +424,9 @@ class camera:
                 f"The surface argument must be a surface, not {type(surface)}"
             )
 
-        camera.all_images[depth].append((surface, position, is_blocked_on_screen))
+        camera.all_images[depth].append(
+            (surface, position, is_blocked_on_screen, special_flags)
+        )
 
     @classmethod
     def step(cls):

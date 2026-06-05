@@ -71,59 +71,22 @@ selected_bad_unit_sound = pg.mixer.Sound("assets/sound/confirm_style_4_004.wav")
 
 ###### unit type ######
 
-directory_unit_team_color = "assets/unit_with_team_color" + "/"
-
-
-### hex_type ###
-
-
-# FIXME: this shit is definitly doing some weird things
-class hex_type:
-    import math
-
-    size = 35  # size of one side of an hex
-    width = math.sqrt(3) * size  # pythagorean theorem
-    height = 2 * size  # and that comes from a website
-
-    folder_str_mouse_not_on_it = "assets/hex_stat/hex_stat_when_mouse_not_on_it"
-    folder_str_mouse_on_it = "assets/hex_stat/hex_stat_when_mouse_on_it"
-
-    DEFAULT = "hex.png"
-    UNIT_CAN_GO = "hex_can_go.png"
-    UNIT_CAN_ATTACK = "hex_can_attack.png"
-
-    luminosity_added_when_mouse_on_hex = 50
-    mouse_on_it_image_mask = pg.Surface((width, height))
-    """To add to an image with pg.BLEND_RGB_ADD to make it look selected"""
-    mouse_on_it_image_mask.fill(
-        pg.Color(
-            luminosity_added_when_mouse_on_hex,
-            luminosity_added_when_mouse_on_hex,
-            luminosity_added_when_mouse_on_hex,
-        )
-    )
-
-    image_types = get_all_image_in_folder(folder_str_mouse_not_on_it)
-    for key in image_types:
-        image = image_types[key]
-        image = pg.transform.scale(image, (width, height))
-        image_types[key] = image
-    types_mouse_on_it = get_all_image_in_folder(folder_str_mouse_on_it)
-
+directory_unit_team_color = "assets/unit_with_team_color/"
 
 ### image ###
 
 fog = load("assets/image/fog_hex.png")
 
-
-hex_highlight = load("assets/essentials-4xgames-tileset/tile-farm-sown.png")
-
-hex_image = load("assets/hex_stat/hex_stat_when_mouse_not_on_it/hex.png")
+hex_image = load("essentials-4xgames-tileset/base_rocky.png")
 
 next_turn_button = load("assets/image/end_turn_button.png")
 
 go_button = load("assets/image/go_button.png")
 attack_button = load("assets/image/attack_button.png")
+
+hex_can_go = load("hex_stat/can_go_tile")
+hex_mouse_on = load("hex_stat/mouse_on_tile")
+hex_can_attack = load("hex_stat/can_attack_tile")
 
 if pg.display.get_active():
     background_waiting_image = pg.transform.scale(

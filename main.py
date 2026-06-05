@@ -7,7 +7,6 @@ import pyg
 
 team: int
 screen = pg.display.set_mode((720, 500))
-clock = pg.time.Clock()
 fps = 120
 
 pg.init()
@@ -66,7 +65,6 @@ def step():
 
     pg.display.flip()
     screen.fill((0, 0, 0))
-    clock.tick(fps)
 
 
 init()

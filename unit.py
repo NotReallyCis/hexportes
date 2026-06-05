@@ -196,18 +196,12 @@ class Unit:
         camera(ammo_info, (x, y + 5))
 
     def draw_possible_paths(self):
-        from hex import Hex
-
         for hex in self.possible_paths:
-            hex: Hex
-            hex.stat = data.hex_type.UNIT_CAN_GO
+            hex.draw_surface_on_top(data.hex_can_go, pg.BLEND_RGB_ADD)
 
     def draw_possible_range(self):
-        from hex import Hex
-
         for hex in self.possible_range:
-            hex: Hex
-            hex.stat = data.hex_type.UNIT_CAN_ATTACK
+            hex.draw_surface_on_top(data.hex_can_attack, pg.BLEND_RGB_ADD)
 
     def get_hex(self):
         """Get the hex where the unit is"""
@@ -293,19 +287,17 @@ class Unit:
     def get_possible_paths(self):
         """get all the possible tiles you can go"""
         movement_point = min(self.movement_point, self.fuel)
-
         self.possible_paths = self.search_hex(self.get_hex(), movement_point, True)
 
     def get_possible_range(self):
         """get all the possible tiles you can shoot to"""
-        self.possible_range = []
-        self.search_hex(self.get_hex(), self.range, False)
+        self.possible_range = self.search_hex(self.get_hex(), self.range, False)
 
     def get_possible_view_range(self):
         """get all the possible tiles you can view"""
         visible_hexs = self.search_hex(self.get_hex(), self.view_range, False)
         for hex in visible_hexs:
-            hex.is_visible = True
+            hex.remove_fog()
 
     def search_hex(
         self,
