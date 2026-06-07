@@ -197,11 +197,11 @@ class Unit:
 
     def draw_possible_paths(self):
         for hex in self.possible_paths:
-            hex.draw_surface_on_top(data.hex_can_go, pg.BLEND_RGB_ADD)
+            hex.draw_surface_on_top(data.hex_can_go)
 
     def draw_possible_range(self):
         for hex in self.possible_range:
-            hex.draw_surface_on_top(data.hex_can_attack, pg.BLEND_RGB_ADD)
+            hex.draw_surface_on_top(data.hex_can_attack)
 
     def get_hex(self):
         """Get the hex where the unit is"""
@@ -286,7 +286,7 @@ class Unit:
 
     def get_possible_paths(self):
         """get all the possible tiles you can go"""
-        movement_point = min(self.movement_point, self.fuel)
+        movement_point = self.movement_point
         self.possible_paths = self.search_hex(self.get_hex(), movement_point, True)
 
     def get_possible_range(self):

@@ -75,7 +75,12 @@ directory_unit_team_color = "assets/unit_with_team_color/"
 
 ### image ###
 
-fog = load("assets/image/fog_hex.png")
+baren = load("hex_image/base_baren")
+green = load("hex_image/base_green")
+rocky = load("hex_image/base_rocky")
+
+
+fog = load("assets/hex_image/fog.png")
 
 hex_image = load("essentials-4xgames-tileset/base_rocky.png")
 
@@ -84,9 +89,9 @@ next_turn_button = load("assets/image/end_turn_button.png")
 go_button = load("assets/image/go_button.png")
 attack_button = load("assets/image/attack_button.png")
 
-hex_can_go = load("hex_stat/can_go_tile")
-hex_mouse_on = load("hex_stat/mouse_on_tile")
-hex_can_attack = load("hex_stat/can_attack_tile")
+hex_can_go = load("image/can_go_tile")
+hex_mouse_on = load("image/mouse_on_tile")
+hex_can_attack = load("image/can_attack_tile")
 
 if pg.display.get_active():
     background_waiting_image = pg.transform.scale(

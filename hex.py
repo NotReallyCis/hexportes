@@ -1,5 +1,5 @@
 import pygame as pg
-import math, data, unit_type
+import math, data, unit_type, random
 from unit import Unit
 import pyg
 
@@ -9,7 +9,7 @@ class Hex:
     width = 64
     height = 64
     vertical_spacing = 56
-    horizontal_spacing = 48  # idk why it's 0.75, don't ask me ;_;
+    horizontal_spacing = 48
 
     map_width = 100
     map_height = 100
@@ -21,7 +21,7 @@ class Hex:
         (width * map_width, height * map_height + (height / 2))
     )
     all_hexs_fog_surface = pg.Surface(
-        (width * map_width, height * map_height + (height / 2))
+        (width * map_width, height * map_height + (height / 2)), pg.SRCALPHA
     )
 
     mask = pg.mask.from_surface(hex_image, 1)
@@ -30,25 +30,50 @@ class Hex:
 
     hex_cursor_is_on = None
 
-    def __init__(
-        self, w: int, h: int, image: pg.Surface, movement_point_needed: int = 1
-    ):
+    BAREN = "baren terrain"
+    GREEN = "green terrain"
+    ROCKY = "rocky terrain"
+
+    SURFACE = "surface"
+    WEIGHT = "weight"
+    terrain_types: dict[str] = {
+        BAREN: {SURFACE: data.baren, WEIGHT: 1},
+        GREEN: {SURFACE: data.green, WEIGHT: 1},
+        ROCKY: {SURFACE: data.rocky, WEIGHT: 3},
+    }
+
+    def __init__(self, w: int, h: int, type: str):
+        if type not in Hex.terrain_types:
+            raise ValueError(f"Type {type} is not recognised")
+
         self.w = w
         self.h = h
         self.x, self.y = Hex.get_xy_by_wh(self.w, self.h)
 
-        self.width = Hex.width
-        self.height = Hex.height
         self.rect = pg.Rect(self.x, self.y, self.width, self.height)
 
-        Hex.all_hexs_surface.blit(image, self.get_xy_by_wh(self.w, self.h))
+        self.type = type
+        self.surface = Hex.terrain_types[type][Hex.SURFACE]
+        Hex.all_hexs_surface.blit(self.surface, self.get_xy_by_wh(self.w, self.h))
 
-        self.weight = movement_point_needed
+        self.weight = Hex.terrain_types[type][Hex.WEIGHT]
+        """the amount of movement point needed"""
 
         self.unit_on_hex: Unit | None = None
 
-        self.is_visible = True # set to True first because add_fog won't add fog if it's False  
+        self.is_visible = (
+            True  # set to True first because add_fog won't add fog if it's False
+        )
         self.add_fog()
+
+    @classmethod
+    def create_hexs_map(cls):
+        for w in range(Hex.map_width):
+            Hex.all_hexs.append([])
+            for h in range(Hex.map_height):
+                type = random.choice(list(Hex.terrain_types.keys()))
+                Hex.all_hexs[w].append(Hex(w, h, type))
+        return Hex.all_hexs[w]
 
     @classmethod
     def on_end_of_turn(cls):
@@ -66,7 +91,11 @@ class Hex:
     @classmethod
     def draw_all(cls):
         pyg.camera(Hex.all_hexs_surface, (0, 0), 1)
-        pyg.camera(Hex.all_hexs_fog_surface, (0, 0), 2, special_flags=pg.BLEND_RGB_ADD)
+        pyg.camera(
+            Hex.all_hexs_fog_surface,
+            (0, 0),
+            2,
+        )
 
     def add_fog(self):
         if self.is_visible == False:
@@ -79,7 +108,7 @@ class Hex:
             return
         Hex.mask.to_surface(
             Hex.all_hexs_fog_surface,
-            setcolor=(0, 0, 0),
+            setcolor=(0, 0, 0, 0),  # put on white becuse I use BLEND_RGBA_MULT
             unsetcolor=None,
             dest=(self.x, self.y),
         )
@@ -87,7 +116,7 @@ class Hex:
 
     def draw_surface_on_top(self, surface: pg.Surface, special_flags: int = 0):
         """blit a custom surface on top of the hex (eg: can_go_tile)"""
-        pyg.camera(surface, (self.x, self.y), -99, False, False, special_flags)
+        pyg.camera(surface, (self.x, self.y), -101, False, False, special_flags)
 
     def is_position_in_hex(self, position: tuple[int, int] | pg.Vector2) -> bool:
         return (
@@ -125,14 +154,6 @@ class Hex:
                 if self.unit_on_hex != None:
                     Unit.unit_selected.attack(self.unit_on_hex)
                     data.click_stat.stat = data.click_stat.SELECT_UNIT_DESTINATION
-
-    @classmethod
-    def create_hexs_map(cls):
-        for w in range(Hex.map_width):
-            Hex.all_hexs.append([])
-            for h in range(Hex.map_height):
-                Hex.all_hexs[w].append(Hex(w, h, Hex.hex_image))
-        return Hex.all_hexs[w]
 
     @classmethod
     def get_xy_by_wh(cls, w: int, h: int):

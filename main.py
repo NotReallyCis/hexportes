@@ -10,7 +10,7 @@ screen = pg.display.set_mode((720, 500))
 fps = 120
 
 pg.init()
-pyg.init_all_module(fps, True)
+pyg.init_all_module(fps, False)
 
 import client
 
@@ -27,7 +27,6 @@ def init():
 
 from hex import Hex
 import unit
-
 import camera_movement
 
 

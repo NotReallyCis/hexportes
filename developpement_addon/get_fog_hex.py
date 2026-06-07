@@ -1,25 +1,26 @@
 import sys
 
-sys.path.append("C:/Users/bauma/Documents/GitHub/hexportes")
+sys.path.append("/home/louane/git/hexportes")
 
-
-import data
 import pygame as pg
+from hex import Hex
+import data
 
-fog = pg.image.load("assets/image/fog_map.png")
+number_of_fogs = 4
+fog = data.load("assets/image/fog_map.png")
+
+fog_hex = pg.Surface((Hex.width, Hex.height), pg.SRCALPHA)
+fog = pg.transform.scale(fog, fog_hex.get_size())
 hex_image = data.hex_image.copy()
-hex_image = pg.transform.scale(hex_image, (data.hex_type.width, data.hex_type.height))
-hex_mask = pg.mask.from_surface(hex_image, 1)
-output_surface_path = "assets/image/fog_hex.png"
+hex_mask = Hex.mask
 
 
-output_surface = pg.Surface(
-    (data.hex_type.width, data.hex_type.height), flags=pg.SRCALPHA
-)
-for x in range(output_surface.get_width()):
-    for y in range(output_surface.get_height()):
-
+for x in range(fog_hex.get_width()):
+    for y in range(fog_hex.get_height()):
         if hex_mask.get_at((x, y)):
-            output_surface.set_at((x, y), fog.get_at((x, y)))
+            alpha = fog.get_at((x, y))[0]  # r==g==b so we just take r
+            fog_hex.set_at((x, y), (0, 0, 0, alpha))
 
-pg.image.save(output_surface, output_surface_path)
+
+output_surface_path = "assets/hex_image/fog.png"
+pg.image.save(fog_hex, output_surface_path)
