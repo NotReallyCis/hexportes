@@ -11,7 +11,6 @@ fog = data.load("assets/image/fog_map.png")
 
 fog_hex = pg.Surface((Hex.width, Hex.height), pg.SRCALPHA)
 fog = pg.transform.scale(fog, fog_hex.get_size())
-hex_image = data.hex_image.copy()
 hex_mask = Hex.mask
 
 

@@ -1,5 +1,5 @@
 import pygame as pg
-import math, data, unit_type, random
+import math, data, random
 from unit import Unit
 import pyg
 
@@ -33,6 +33,7 @@ class Hex:
     BAREN = "baren terrain"
     GREEN = "green terrain"
     ROCKY = "rocky terrain"
+    WATER = "water terrain"
 
     SURFACE = "surface"
     WEIGHT = "weight"
@@ -40,7 +41,9 @@ class Hex:
         BAREN: {SURFACE: data.baren, WEIGHT: 1},
         GREEN: {SURFACE: data.green, WEIGHT: 1},
         ROCKY: {SURFACE: data.rocky, WEIGHT: 3},
+        WATER: {SURFACE: data.water, WEIGHT: 0},
     }
+    """If the weight is 0 then the tile is impassable"""
 
     def __init__(self, w: int, h: int, type: str):
         if type not in Hex.terrain_types:
@@ -58,6 +61,8 @@ class Hex:
 
         self.weight = Hex.terrain_types[type][Hex.WEIGHT]
         """the amount of movement point needed"""
+        if self.weight == 0:
+            self.weight = 999  # a really high value
 
         self.unit_on_hex: Unit | None = None
 
@@ -132,6 +137,8 @@ class Hex:
     @staticmethod
     @pyg.keyboard.execute_on_click
     def click_hex_selected():
+        if Hex.hex_cursor_is_on is None:
+            return
         if not pyg.Button.is_position_in_zone_covered(*pyg.keyboard.mouse_position.xy):
             Hex.hex_cursor_is_on.clicked()
 
@@ -257,6 +264,8 @@ class Hex:
 
     @classmethod
     def load_hex__str__(cls, w: int, h: int, string_to_load: tuple | None):
+        import unit
+
         hex: Hex = Hex.get_hex_by_wh(w, h)
 
         if string_to_load is None:
@@ -271,7 +280,7 @@ class Hex:
             unit_ammo: int = string_to_load[3]
             unit_fuel: int = string_to_load[4]
 
-            if unit_name in unit_type.unit_type.keys():
+            if unit_name in unit.unit_type.keys():
                 hex.unit_on_hex = Unit(
                     w,
                     h,

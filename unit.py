@@ -1,7 +1,6 @@
 from pyg import camera, draw, get_percentage
 import pygame as pg
-import data, unit_type
-import pyg
+import data, pyg
 
 
 from typing import TYPE_CHECKING
@@ -14,6 +13,43 @@ else:
         pass
 
 
+def get_variable(variable, default):
+    """return The variable if it's not none and the default otherwise (similar to git.dict)"""
+    if variable is None:
+        return default
+    else:
+        return variable
+
+
+RANGE = "range"
+VIEW_RANGE = "view_range"
+MOVEMENT_POINT = "movement_point"
+IMAGE = "image"
+PV = "pv"
+TEST_UNIT = "first_test"
+DAMAGE = "damage"
+AMMO = "ammo"
+FUEL = "fuel"
+
+unit_type = {
+    TEST_UNIT: {
+        MOVEMENT_POINT: 4,
+        RANGE: 5,
+        VIEW_RANGE: 5,
+        IMAGE: "tile-village.png",
+        PV: 10,
+        DAMAGE: 5,
+        AMMO: 20,
+        FUEL: 10,
+    },
+}
+
+
+def get_unit_image_by_unit_and_color(unit_name: str, color: str):
+    image_name = unit_type[unit_name][IMAGE]
+    return pg.image.load(data.directory_unit_team_color + color + "_" + image_name)
+
+
 class Unit:
     all_units = []
     unit_selected = None
@@ -23,6 +59,7 @@ class Unit:
 
     @classmethod
     def init(cls, team: int):
+        """create a new team"""
         Unit.team_of_main = team
 
         Unit.map_teams_to_color = {Unit.team_of_main: Unit.color_remaining[0]}
@@ -46,13 +83,13 @@ class Unit:
         pg.Rect(50, 0, 50, 50),
     )
 
-    def __init__(  # TODO :way too long
+    def __init__(
         self,
         w: int,
         h: int,
         name: str,
         team: int,
-        pv_of_unit: int = None,
+        pv: int = None,
         ammo: int = None,
         fuel: int = None,
     ):
@@ -61,31 +98,20 @@ class Unit:
 
         self.name = name
 
-        self.default_pv = unit_type.unit_type[name][unit_type.PV]
-        if pv_of_unit == None:
-            self.pv = self.default_pv
-        else:
-            self.pv = pv_of_unit
+        self.default_pv = unit_type[name][PV]
+        self.pv: int = get_variable(pv, self.default_pv)
 
-        self.default_ammo = unit_type.unit_type[name][unit_type.AMMO]
-        if ammo == None:
-            self.ammo = self.default_ammo
-        else:
-            self.ammo = ammo
+        self.default_ammo = unit_type[name][AMMO]
+        self.ammo: int = get_variable(ammo, self.default_ammo)
 
-        self.default_fuel = unit_type.unit_type[name][unit_type.FUEL]
-        if fuel == None:
-            self.fuel = self.default_fuel
-        else:
-            self.fuel = fuel
+        self.default_fuel = unit_type[name][FUEL]
+        self.fuel: int = get_variable(fuel, self.default_fuel)
 
-        self.damage = unit_type.unit_type[name][unit_type.DAMAGE]
+        self.damage = unit_type[name][DAMAGE]
+        self.range = unit_type[name][RANGE]
+        self.view_range = unit_type[name][VIEW_RANGE]
 
-        self.range = unit_type.unit_type[name][unit_type.RANGE]
-
-        self.view_range = unit_type.unit_type[name][unit_type.VIEW_RANGE]
-
-        self.movement_point = unit_type.unit_type[name][unit_type.MOVEMENT_POINT]
+        self.movement_point = unit_type[name][MOVEMENT_POINT]
         self.default_movement_point = self.movement_point
 
         self.team = team
@@ -106,7 +132,7 @@ class Unit:
         Unit.all_units.append(self)
 
     def set_image(self):
-        self.image = unit_type.get_unit_image_by_unit_and_color(self.name, self.color)
+        self.image = get_unit_image_by_unit_and_color(self.name, self.color)
 
     def set_color(self):
         if self.team in Unit.map_teams_to_color.keys():

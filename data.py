@@ -78,11 +78,13 @@ directory_unit_team_color = "assets/unit_with_team_color/"
 baren = load("hex_image/base_baren")
 green = load("hex_image/base_green")
 rocky = load("hex_image/base_rocky")
+water = load("hex_image/base_watery")
 
 
 fog = load("assets/hex_image/fog.png")
 
 hex_image = load("essentials-4xgames-tileset/base_rocky.png")
+"""The default hex image for mask or other things"""
 
 next_turn_button = load("assets/image/end_turn_button.png")
 

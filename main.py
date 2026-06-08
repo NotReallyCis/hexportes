@@ -10,7 +10,9 @@ screen = pg.display.set_mode((720, 500))
 fps = 120
 
 pg.init()
-pyg.init_all_module(fps, False)
+pyg.init_all_module(
+    fps,
+)
 
 import client
 
@@ -37,7 +39,7 @@ def end_of_turn(is_sending_data_to_server: bool = True):
     client.start_waiting_loop()
 
 
-import data, unit_type
+import data
 
 data.click_stat.stat = data.click_stat.SELECT_UNIT  # the stat at start
 
@@ -69,7 +71,7 @@ def step():
 init()
 end_of_turn(False)  # it gets the map of the server at the start
 
-unit.Unit(0, 0, unit_type.TEST_UNIT, team)
+unit.Unit(0, 0, unit.TEST_UNIT, team)
 
 while True:
     step()
