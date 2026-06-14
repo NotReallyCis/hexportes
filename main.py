@@ -33,15 +33,13 @@ import camera_movement
 
 
 def end_of_turn(is_sending_data_to_server: bool = True):
-    data.click_stat.stat = data.click_stat.SELECT_UNIT
 
     client.receive_and_send_maps_info(is_sending_data_to_server)
     client.start_waiting_loop()
+    data.current_state = data.click_stat.SELECT_UNIT
 
 
 import data
-
-data.click_stat.stat = data.click_stat.SELECT_UNIT  # the stat at start
 
 pyg.Button(
     data.next_turn_button,
@@ -71,7 +69,7 @@ def step():
 init()
 end_of_turn(False)  # it gets the map of the server at the start
 
-unit.Unit(0, 0, unit.TEST_UNIT, team)
+unit.Unit.from_name(0, 0, unit.TEST_UNIT, team)
 
 while True:
     step()

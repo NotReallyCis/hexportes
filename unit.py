@@ -1,7 +1,7 @@
 from pyg import camera, draw, get_percentage
 import pygame as pg
-import data, pyg
-
+import data, pyg, abc
+from typing import Type
 
 from typing import TYPE_CHECKING
 
@@ -21,26 +21,247 @@ def get_variable(variable, default):
         return variable
 
 
-RANGE = "range"
-VIEW_RANGE = "view_range"
-MOVEMENT_POINT = "movement_point"
+class Bar:
+    height = 5
+    width = 50
+
+    def __init__(self, color: pg.Color, max_value: int, value: int = None):
+        self.color = color
+        self.max_value = max_value
+        self.value = get_variable(value, max_value)
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, new_value: int):
+        self._value = new_value
+        self.surface = self.get_surface()
+
+    def get_surface(self):
+        surface = draw.bar_percentage(
+            get_percentage(self.value, self.max_value),
+            self.width,
+            self.height,
+            self.color,
+            border_size=1,
+        )
+        return surface
+
+    def draw(self, pos):
+        camera(self.surface, pos)
+
+
+class Component(abc.ABC):
+    """Base class for all components"""
+
+    def __init__(self, unit: Unit, info: dict[str]):
+        self.unit = unit
+        self.unit.components[self.get_name()] = self
+
+    def step(self):
+        """called each tick"""
+        pass
+
+    def unit_selected(self):
+        pass
+
+    def unit_unselected(self):
+        pass
+
+    def on_click(self, clicked_hex: Hex):
+        pass
+
+    def get_info(self) -> dict[str]:
+        return {}
+
+    @classmethod
+    def get_name(cls):
+        return cls.__name__
+
+    def add_bar(self, bar: Bar):
+        self.unit.bars.append(bar)
+
+    def after_movemement(self):
+        pass
+
+
+class Component_movement(Component):
+    FUEL = "fuel"
+    MAX_FUEL = "max fuel"
+    MOVEMENT_POINT = "movement point"
+
+    def __init__(self, unit, info):
+        super().__init__(unit, info)
+        self.movement_point = self.default_movement_point = unit.get_type_info()[
+            Component_movement.MOVEMENT_POINT
+        ]
+        self.max_fuel = unit.get_type_info()[self.MAX_FUEL]
+        self.fuel = info.get(Component_movement.FUEL, self.max_fuel)
+        self.fuel_bar = Bar("brown", self.max_fuel, self.fuel)
+        self.add_bar(self.fuel_bar)
+        self.unit.add_button(data.go_button, Component_movement.switch_state)
+        self.reset_possible_hexs_to_go()
+
+    def get_info(self):
+        return {
+            Component_movement.MOVEMENT_POINT: self.default_movement_point,
+            Component_movement.FUEL: self.fuel,
+        }
+
+    CHOOSE_DESTINATION_STATE = "choose destination"
+
+    @staticmethod
+    def switch_state():
+        data.current_state = Component_movement.CHOOSE_DESTINATION_STATE
+
+    def on_click(self, hex: Hex):
+        if data.current_state != Component_movement.CHOOSE_DESTINATION_STATE:
+            return
+        if hex.unit_on_hex is not None or hex not in self.possible_hexs_to_go:
+            return
+        fuel_after_movement = self.fuel - (
+            self.movement_point - self.possible_hexs_to_go[hex]
+        )
+        if fuel_after_movement < 0:
+            return
+
+        self.fuel = fuel_after_movement
+        self.fuel_bar.value = self.fuel
+        self.movement_point = self.possible_hexs_to_go[hex]
+        self.unit.move_to(hex)
+
+        return super().on_click(hex)
+
+    def reset_possible_hexs_to_go(self):
+        self.possible_hexs_to_go = self.unit.get_hex().search_hex(
+            self.movement_point, True
+        )
+
+    def after_movemement(self):
+        self.reset_possible_hexs_to_go()
+        return super().after_movemement()
+
+    def step(self):
+        if data.current_state == Component_movement.CHOOSE_DESTINATION_STATE:
+            for possible_hex_to_go in self.possible_hexs_to_go:
+                possible_hex_to_go.draw_surface_on_top(data.hex_can_go)
+        return super().step()
+
+
+class Component_vision(Component):
+    VIEW_RANGE = "view range"
+
+    def __init__(self, unit, info):
+        super().__init__(unit, info)
+        self.view_range = unit.get_type_info()[Component_vision.VIEW_RANGE]
+        self.calculate_vision()
+
+    def calculate_vision(self):
+        visible_hexs = self.unit.get_hex().search_hex(self.view_range, False)
+        for hex in visible_hexs:
+            hex.remove_fog()
+
+    def after_movemement(self):
+        self.calculate_vision()
+        return super().after_movemement()
+
+
+class Component_attack(Component):
+    DAMAGE = "damage"
+    AMMO = "ammo"
+    MAX_AMMO = "max ammo"
+    RANGE = "range"
+    attack_button = data.attack_button
+    ATTACK_STATE = "attack"
+    hex_can_attack = data.hex_can_attack
+    attackable_hexs: list[Hex]
+
+    def __init__(self, unit, info: dict[str]):
+        super().__init__(unit, info)
+        self.damage = unit.get_type_info()[self.DAMAGE]
+        max_ammo = unit.get_type_info()[self.MAX_AMMO]
+        self.ammo = info.get(self.AMMO, max_ammo)
+        self.attack_range = unit.get_type_info()[self.RANGE]
+
+        self.add_bar(Bar("red", max_ammo, self.ammo))
+        self.unit.add_button(
+            Component_attack.attack_button, Component_attack.switch_attack_mode
+        )
+        self.reset_attackable_hexs()
+
+    @staticmethod
+    def switch_attack_mode():
+        data.current_state = Component_attack.ATTACK_STATE
+
+    def on_click(self, hex):
+        if data.current_state == Component_attack.ATTACK_STATE:
+            self.attack_tile(hex)
+        return super().on_click(hex)
+
+    def attack_tile(self, hex: Hex):
+        unit = hex.unit_on_hex
+        if (
+            (unit is None)
+            or (unit.team == self.unit.team)
+            or (not unit.has_component(Component_attack))
+        ):
+            return
+        print(f"KABOOM {unit}")
+
+    def after_movemement(self):
+        self.reset_attackable_hexs()
+        return super().after_movemement()
+
+    def step(self):
+        if data.current_state == Component_attack.ATTACK_STATE:
+            self.draw_attackable_hexs()
+        return super().step()
+
+    def reset_attackable_hexs(self):
+        self.attackable_hexs = self.unit.get_hex().search_hex(self.attack_range, False)
+
+    def draw_attackable_hexs(self):
+        for hex in self.attackable_hexs:
+            hex.draw_surface_on_top(Component_attack.hex_can_attack)
+
+
+class Component_pv(Component):
+    PV = "pv"
+    MAX_PV = "max pv"
+
+    def __init__(self, unit, info):
+        super().__init__(unit, info)
+        max_pv = unit.get_type_info()[Component_pv.MAX_PV]
+        self.pv = info.get(Component_pv.PV, max_pv)
+        self.add_bar(Bar("green", max_pv, self.pv))
+
+    def get_info(self):
+        return {Component_pv.PV: self.pv}
+
+
 IMAGE = "image"
-PV = "pv"
+COMPONENTS = "components"
+
 TEST_UNIT = "first_test"
-DAMAGE = "damage"
-AMMO = "ammo"
-FUEL = "fuel"
 
 unit_type = {
     TEST_UNIT: {
-        MOVEMENT_POINT: 4,
-        RANGE: 5,
-        VIEW_RANGE: 5,
         IMAGE: "tile-village.png",
-        PV: 10,
-        DAMAGE: 5,
-        AMMO: 20,
-        FUEL: 10,
+        COMPONENTS: [
+            Component_pv,
+            Component_movement,
+            Component_attack,
+            Component_vision,
+        ],
+        Component_movement.MOVEMENT_POINT: 4,
+        Component_movement.MAX_FUEL: 10,
+        Component_vision.VIEW_RANGE: 5,
+        Component_pv.MAX_PV: 10,
+        Component_attack.DAMAGE: 5,
+        Component_attack.MAX_AMMO: 20,
+        Component_attack.RANGE: 5,
     },
 }
 
@@ -51,11 +272,16 @@ def get_unit_image_by_unit_and_color(unit_name: str, color: str):
 
 
 class Unit:
-    all_units = []
-    unit_selected = None
+    all_units: list[Unit] = []
+    unit_selected: None | Unit = None
 
     color_remaining = data.all_colors
     selected_bad_unit_sound = data.selected_bad_unit_sound
+
+    components: dict[str, Component] = {}
+    bars: list[Bar] = []
+    all_buttons: list[pyg.Button] = []
+    button_size = pg.Rect(0, 0, 50, 50)
 
     @classmethod
     def init(cls, team: int):
@@ -65,71 +291,56 @@ class Unit:
         Unit.map_teams_to_color = {Unit.team_of_main: Unit.color_remaining[0]}
         Unit.color_remaining.pop(0)
 
-    def set_click_stat_at_go():
-        data.click_stat.stat = data.click_stat.SELECT_UNIT_DESTINATION
+    def add_component(self, component: type[Component], info: dict[str]):
+        component(self, info)
 
-    go_button = pyg.Button(
-        data.go_button,
-        set_click_stat_at_go,
-        pg.Rect(100, 0, 50, 50),
-    )
+    def has_component(self, component: Type[Component] | str):
+        if not isinstance(component, str):
+            component = component.get_name()
+        return component in self.components
 
-    def set_click_stat_at_attack():
-        data.click_stat.stat = data.click_stat.SELECT_UNIT_ATTACK
-
-    attack_button = pyg.Button(
-        data.attack_button,
-        set_click_stat_at_attack,
-        pg.Rect(50, 0, 50, 50),
-    )
+    @classmethod
+    def from_name(cls, w: int, h: int, name: str, team: int):
+        return Unit(w, h, {Unit.TEAM: team, Unit.NAME: name})
 
     def __init__(
         self,
         w: int,
         h: int,
-        name: str,
-        team: int,
-        pv: int = None,
-        ammo: int = None,
-        fuel: int = None,
+        info: dict[str],
     ):
         self.w = w
         self.h = h
 
-        self.name = name
-
-        self.default_pv = unit_type[name][PV]
-        self.pv: int = get_variable(pv, self.default_pv)
-
-        self.default_ammo = unit_type[name][AMMO]
-        self.ammo: int = get_variable(ammo, self.default_ammo)
-
-        self.default_fuel = unit_type[name][FUEL]
-        self.fuel: int = get_variable(fuel, self.default_fuel)
-
-        self.damage = unit_type[name][DAMAGE]
-        self.range = unit_type[name][RANGE]
-        self.view_range = unit_type[name][VIEW_RANGE]
-
-        self.movement_point = unit_type[name][MOVEMENT_POINT]
-        self.default_movement_point = self.movement_point
-
-        self.team = team
+        self.name = info[Unit.NAME]
+        self.team = info[Unit.TEAM]
         self.set_color()
         self.set_image()
+
         if self.get_hex().unit_on_hex != None:
             raise ValueError(
                 f"hex({w,h}) is arleady taken by another unit, can't generate here"
             )
         self.get_hex().unit_on_hex = self
 
-        self.get_possible_paths()
-        self.get_possible_range()
-        self.get_possible_view_range()
-
         self.is_selected = False
 
         Unit.all_units.append(self)
+        for component in unit_type[self.name][COMPONENTS]:
+            self.add_component(component, info)
+
+    TEAM = "team"
+    NAME = "name"
+
+    def get_info(self):
+        """return a dict with all the informations to create a new unit"""
+        info = {Unit.TEAM: self.team, Unit.NAME: self.name}
+        for component in self.components.values():
+            info = info | component.get_info()
+        return info
+
+    def get_type_info(self):
+        return unit_type[self.name]
 
     def set_image(self):
         self.image = get_unit_image_by_unit_and_color(self.name, self.color)
@@ -160,29 +371,17 @@ class Unit:
     def __repr__(self):
         return self.__str__()
 
-    def __tuple__(self):
-        return (self.name, self.team, self.pv, self.ammo, self.fuel)
-
     def step(self):
-        if self.pv <= 0:
-            self.destroy()
+        for component in self.components.values():
+            component.step()
 
-        if self.is_selected:
-            match data.click_stat.stat:
-                case data.click_stat.SELECT_UNIT_DESTINATION:
-                    self.draw_possible_paths()
-                case data.click_stat.SELECT_UNIT_ATTACK:
-                    self.draw_possible_range()
         if self.get_hex().is_visible:
             self.draw()
             self.draw_info()
 
     @classmethod
-    @pyg.Profiler
     def step_all_units(cls):
-
         for unit in Unit.all_units:
-            unit: Unit
             unit.step()
 
     def draw(self):
@@ -193,41 +392,15 @@ class Unit:
 
     def draw_info(self):
         x, y = self.get_xy()
+        for i, bar in enumerate(self.bars):
+            bar.draw((x, y - (i * Bar.height)))
 
-        life_info = draw.bar_percentage(
-            get_percentage(self.pv, self.default_pv),
-            width=50,
-            height=5,
-            border_size=1,
-            bar_color=pg.Color(0, 250, 0),
-        )
-        camera(life_info, (x, y - 5))
-
-        fuel_info = draw.bar_percentage(
-            get_percentage(self.fuel, self.default_fuel),
-            width=50,
-            height=5,
-            border_size=1,
-            bar_color=pg.Color(250, 123, 0),
-        )
-        camera(fuel_info, (x, y))
-
-        ammo_info = draw.bar_percentage(
-            get_percentage(self.ammo, self.default_ammo),
-            width=50,
-            height=5,
-            border_size=1,
-            bar_color=pg.Color(250, 0, 0),
-        )
-        camera(ammo_info, (x, y + 5))
-
-    def draw_possible_paths(self):
-        for hex in self.possible_paths:
-            hex.draw_surface_on_top(data.hex_can_go)
-
-    def draw_possible_range(self):
-        for hex in self.possible_range:
-            hex.draw_surface_on_top(data.hex_can_attack)
+    def add_button(self, surface: pg.Surface, function: "function"):
+        rect = Unit.button_size.copy()
+        rect.x = (
+            len(self.all_buttons) + 1
+        ) * Unit.button_size.width  # +1 for the "pass turn button"
+        self.all_buttons.append(pyg.Button(surface, function, rect))
 
     def get_hex(self):
         """Get the hex where the unit is"""
@@ -239,132 +412,42 @@ class Unit:
     def get_xy(self):
         return (self.get_hex().x, self.get_hex().y)
 
-    def move_to(self, w: int, h: int):
-        from hex import Hex
-
-        hex_to_move: Hex = Hex.get_hex_by_wh(w, h)
-
-        if (
-            hex_to_move not in self.possible_paths.keys()
-            or not self.have_enough_fuel_to_go_to(hex_to_move)
-        ):
-            self.unselect()
-            return
-
-        self.get_hex().unit_on_hex = None
-        hex_to_move.unit_on_hex = self
-
-        self.w = w
-        self.h = h
-
-        movement_point_consumed = self.movement_point - self.possible_paths[hex_to_move]
-        self.fuel -= movement_point_consumed
-        self.movement_point = self.possible_paths[hex_to_move]
-
-        self.get_possible_paths()
-        self.get_possible_range()
-        self.get_possible_view_range()
-
-    def have_enough_fuel_to_go_to(self, hex: "Hex"):
-        if hex not in self.possible_paths.keys():
-            raise ValueError("hex is unreacheable")
-
-        movement_point_consumed = self.movement_point - self.possible_paths[hex]
-        fuel_left = self.fuel - movement_point_consumed
-        return fuel_left >= 0
-
-    def attack(self, unit_to_attack: "Unit"):
-        if (
-            unit_to_attack.get_hex() in self.possible_range
-            and unit_to_attack.team != self.team
-        ):
-            unit_to_attack.pv -= self.damage
-            self.ammo -= 1
-
     def select(self):
         if self.is_selected:
             raise ValueError(
-                "you can't select a unit that is arleady selected, (unit selected:)",
-                self.__str__(),
+                f"you can't select a unit that is arleady selected, (unit selected:{ self.__str__()})",
             )
-        elif self.team != Unit.team_of_main:
+        if self.team != Unit.team_of_main:
             Unit.selected_bad_unit_sound.play()
-        else:
-            self.is_selected = True
-            Unit.unit_selected = self
-            data.click_stat.stat = data.click_stat.SELECT_UNIT_DESTINATION
+            return
 
-        Unit.attack_button.is_visible = True
-        Unit.go_button.is_visible = True
+        self.is_selected = True
+        Unit.unit_selected = self
+        for component in self.components.values():
+            component.unit_selected()
+        for button in self.all_buttons:
+            button.is_visible = True
 
     def unselect(self):
         if not self.is_selected:
             raise ValueError(
-                "you can't unselect a unit that is not selected, (unit unselected:)",
-                self.__str__(),
+                f"you can't unselect a unit that is not selected, (unit unselected:{self.__str__()})",
             )
-        else:
-            self.is_selected = False
-            Unit.unit_selected = None
-            data.click_stat.stat = data.click_stat.SELECT_UNIT
-        Unit.attack_button.is_visible = False
-        Unit.go_button.is_visible = False
 
-    def get_possible_paths(self):
-        """get all the possible tiles you can go"""
-        movement_point = self.movement_point
-        self.possible_paths = self.search_hex(self.get_hex(), movement_point, True)
+        self.is_selected = False
+        Unit.unit_selected = None
+        for component in self.components.values():
+            component.unit_unselected()
 
-    def get_possible_range(self):
-        """get all the possible tiles you can shoot to"""
-        self.possible_range = self.search_hex(self.get_hex(), self.range, False)
+        for button in self.all_buttons:
+            button.is_visible = False
 
-    def get_possible_view_range(self):
-        """get all the possible tiles you can view"""
-        visible_hexs = self.search_hex(self.get_hex(), self.view_range, False)
-        for hex in visible_hexs:
-            hex.remove_fog()
+    def on_click(self, clicked_hex: Hex):
+        for component in self.components.values():
+            component.on_click(clicked_hex)
 
-    def search_hex(
-        self,
-        start_hex: Hex,
-        movement_point_possessed: int,
-        is_hex_weight_matter: bool,
-    ):
-        """_summary_
-
-        Args:
-            hex (Hex): The hex you start from
-            movement_point_possessed (int): _description_
-            path (list): input an empty list at beginning
-            is_hex_weight_matter (bool): does the weight of the hex you go to are counted
-        """
-        hexs_to_calculate: list[tuple[Hex, int]] = [
-            (start_hex, movement_point_possessed)
-        ]
-
-        hexs_calculated: dict[Hex, int] = {}
-
-        while True:
-            if hexs_to_calculate == []:  # on end
-                return hexs_calculated
-
-            hex_calculating, movement_point = hexs_to_calculate[0]
-            hexs_to_calculate.pop(0)
-
-            hexs_calculated[hex_calculating] = movement_point
-
-            for hex_around in hex_calculating.get_hexs_around_hex():
-                if hex_around in hexs_calculated:
-                    continue
-
-                hex_around_weight: int = 1
-                if is_hex_weight_matter:
-                    hex_around_weight = hex_around.weight
-
-                movement_point_after_hex_around = movement_point - hex_around_weight
-                """number of movement point you have after going to the hex_around"""
-                if movement_point_after_hex_around > 0:
-                    hexs_to_calculate.append(
-                        (hex_around, movement_point_after_hex_around)
-                    )
+    def move_to(self, hex_to_go: Hex):
+        """telepport the unit to the new location, doesn't check anything. if you want real movement check Component_movement"""
+        self.w, self.h = hex_to_go.w, hex_to_go.h
+        for component in self.components.values():
+            component.after_movemement()

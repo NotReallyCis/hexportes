@@ -143,24 +143,11 @@ class Hex:
             Hex.hex_cursor_is_on.clicked()
 
     def clicked(self):
-        match data.click_stat.stat:
-            case data.click_stat.SELECT_UNIT:
-                if self.unit_on_hex != None:
-                    self.unit_on_hex.select()
-
-            case data.click_stat.SELECT_UNIT_DESTINATION:
-                if self.unit_on_hex == None:
-                    Unit.unit_selected.move_to(self.w, self.h)
-                    if (
-                        Unit.unit_selected != None
-                    ):  # unit unselect when a he want to go to an unreachable destination
-                        if Unit.unit_selected.movement_point == 0:
-                            Unit.unit_selected.unselect()
-
-            case data.click_stat.SELECT_UNIT_ATTACK:
-                if self.unit_on_hex != None:
-                    Unit.unit_selected.attack(self.unit_on_hex)
-                    data.click_stat.stat = data.click_stat.SELECT_UNIT_DESTINATION
+        if data.current_state == data.click_stat.SELECT_UNIT:
+            if self.unit_on_hex != None:
+                self.unit_on_hex.select()
+        else:
+            Unit.unit_selected.on_click(self)
 
     @classmethod
     def get_xy_by_wh(cls, w: int, h: int):
@@ -242,13 +229,13 @@ class Hex:
 
     def get_representation(self):
         if self.unit_on_hex != None:
-            return self.unit_on_hex.__tuple__()
+            return self.unit_on_hex.get_info()
         else:
             return None
 
     @classmethod
     def get_all_hexs__str__(cls):
-        output = []
+        output: list[list] = []
         for w in range(len(Hex.all_hexs)):
             output.append([])
             for hex in Hex.all_hexs[w]:
@@ -263,39 +250,55 @@ class Hex:
                 Hex.load_hex__str__(w, h, hex__str__)
 
     @classmethod
-    def load_hex__str__(cls, w: int, h: int, string_to_load: tuple | None):
+    def load_hex__str__(cls, w: int, h: int, info: dict[str] | None):
         import unit
 
         hex: Hex = Hex.get_hex_by_wh(w, h)
 
-        if string_to_load is None:
-            if hex.unit_on_hex != None:
-
-                hex.unit_on_hex.destroy()
-
+        if info is None:
+            return
         else:
-            unit_name: str = string_to_load[0]
-            unit_team: int = string_to_load[1]
-            unit_pv: int = string_to_load[2]
-            unit_ammo: int = string_to_load[3]
-            unit_fuel: int = string_to_load[4]
+            Unit(hex.w, hex.h, info)
 
-            if unit_name in unit.unit_type.keys():
-                hex.unit_on_hex = Unit(
-                    w,
-                    h,
-                    unit_name,
-                    unit_team,
-                    unit_pv,
-                    unit_ammo,
-                    unit_fuel,
-                )
+    def search_hex(
+        self,
+        movement_point_possessed: int,
+        is_hex_weight_matter: bool,
+    ):
+        """_summary_
 
-            else:
-                raise ValueError(
-                    string_to_load,
-                    type(string_to_load),
-                    "in hex",
-                    hex,
-                    "has not been understood,most likely due that it is incorrect",
-                )
+        Args:
+            movement_point_possessed (int): _description_
+            is_hex_weight_matter (bool): does the weight of the hex you go to are counted
+        """
+
+        hexs_to_calculate: list[tuple[Hex, int]] = [(self, movement_point_possessed)]
+
+        hexs_calculated: dict[Hex, int] = {}
+        movement_point_possessed += 1  # off by one error
+        while True:
+            if hexs_to_calculate == []:  # on end
+                return hexs_calculated
+
+            hex_calculating, movement_point = hexs_to_calculate[0]
+            hexs_to_calculate.pop(0)
+
+            hexs_calculated[hex_calculating] = movement_point
+
+            for hex_around in hex_calculating.get_hexs_around_hex():
+
+                hex_around_weight: int = 1
+                if is_hex_weight_matter:
+                    hex_around_weight = hex_around.weight
+
+                movement_point_after_hex_around = movement_point - hex_around_weight
+                """number of movement point you have after going to the hex_around"""
+                if (
+                    hex_around in hexs_calculated
+                    and movement_point_after_hex_around > hexs_calculated[hex_around]
+                ):
+                    continue
+                if movement_point_after_hex_around <= 0:
+                    continue
+
+                hexs_to_calculate.append((hex_around, movement_point_after_hex_around))

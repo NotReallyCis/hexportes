@@ -34,11 +34,13 @@ class Server:
 
     @classmethod
     def destroy_disconnected_units(cls, team_disconnected: int):
+        from unit import Unit
+
         map_info: list[list] = json.loads(Client.all_map_info)
         for x, line in enumerate(map_info):
             for y, unit in enumerate(line):
                 if unit != None:
-                    unit_team = unit[1]
+                    unit_team = unit[Unit.TEAM]
                     if unit_team == team_disconnected:
                         map_info[x][y] = None
 

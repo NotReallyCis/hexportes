@@ -105,10 +105,10 @@ fuel_icon = load("assets/image/fuel_icon.png")
 
 
 ### click stat ###
+current_state = None
+
+
 class click_stat:
     """this class is used to define the different stat of action done when a click occurs"""
 
     SELECT_UNIT = "select_unit"
-    SELECT_UNIT_DESTINATION = "select_unit_destination"
-    SELECT_UNIT_ATTACK = "select_unit_to_attack"
-    stat = None
