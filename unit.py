@@ -1,6 +1,6 @@
 from pyg import camera, draw, get_percentage
 import pygame as pg
-import data, pyg, abc
+import data, pyg, abc, random
 from typing import Type
 
 from typing import TYPE_CHECKING
@@ -86,6 +86,9 @@ class Component(abc.ABC):
     def after_movemement(self):
         pass
 
+    def __str__(self):
+        return self.get_name()
+
 
 class Component_movement(Component):
     FUEL = "fuel"
@@ -117,14 +120,19 @@ class Component_movement(Component):
         data.current_state = Component_movement.CHOOSE_DESTINATION_STATE
 
     def on_click(self, hex: Hex):
-        if data.current_state != Component_movement.CHOOSE_DESTINATION_STATE:
+        if (
+            data.current_state != Component_movement.CHOOSE_DESTINATION_STATE
+            or not self.unit.is_selected
+        ):
             return
         if hex.unit_on_hex is not None or hex not in self.possible_hexs_to_go:
+            self.unit.unselect()
             return
         fuel_after_movement = self.fuel - (
             self.movement_point - self.possible_hexs_to_go[hex]
         )
         if fuel_after_movement < 0:
+            self.unit.unselect()
             return
 
         self.fuel = fuel_after_movement
@@ -135,8 +143,8 @@ class Component_movement(Component):
         return super().on_click(hex)
 
     def reset_possible_hexs_to_go(self):
-        self.possible_hexs_to_go = self.unit.get_hex().search_hex(
-            self.movement_point, True
+        self.possible_hexs_to_go = (
+            self.unit.get_hex().search_hex(self.movement_point, True).copy()
         )
 
     def after_movemement(self):
@@ -144,9 +152,13 @@ class Component_movement(Component):
         return super().after_movemement()
 
     def step(self):
-        if data.current_state == Component_movement.CHOOSE_DESTINATION_STATE:
+        if (
+            data.current_state == Component_movement.CHOOSE_DESTINATION_STATE
+            and self.unit.is_selected
+        ):
             for possible_hex_to_go in self.possible_hexs_to_go:
                 possible_hex_to_go.draw_surface_on_top(data.hex_can_go)
+
         return super().step()
 
 
@@ -159,6 +171,8 @@ class Component_vision(Component):
         self.calculate_vision()
 
     def calculate_vision(self):
+        if self.unit.team is not self.unit.team_of_main:
+            return
         visible_hexs = self.unit.get_hex().search_hex(self.view_range, False)
         for hex in visible_hexs:
             hex.remove_fog()
@@ -180,7 +194,7 @@ class Component_attack(Component):
 
     def __init__(self, unit, info: dict[str]):
         super().__init__(unit, info)
-        self.damage = unit.get_type_info()[self.DAMAGE]
+        self.damage = int(unit.get_type_info()[self.DAMAGE])
         max_ammo = unit.get_type_info()[self.MAX_AMMO]
         self.ammo = info.get(self.AMMO, max_ammo)
         self.attack_range = unit.get_type_info()[self.RANGE]
@@ -208,7 +222,8 @@ class Component_attack(Component):
             or (not unit.has_component(Component_attack))
         ):
             return
-        print(f"KABOOM {unit}")
+        pv_component: Component_pv = unit.get_component(Component_pv)
+        pv_component.damage(self.damage)
 
     def after_movemement(self):
         self.reset_attackable_hexs()
@@ -234,11 +249,18 @@ class Component_pv(Component):
     def __init__(self, unit, info):
         super().__init__(unit, info)
         max_pv = unit.get_type_info()[Component_pv.MAX_PV]
-        self.pv = info.get(Component_pv.PV, max_pv)
-        self.add_bar(Bar("green", max_pv, self.pv))
+        self.pv = int(info.get(Component_pv.PV, max_pv))
+        self.pv_bar = Bar("green", max_pv, self.pv)
+        self.add_bar(self.pv_bar)
 
     def get_info(self):
         return {Component_pv.PV: self.pv}
+
+    def damage(self, amount: int):
+        self.pv -= amount
+        self.pv_bar.value = self.pv
+        if self.pv <= 0:
+            self.unit.destroy()
 
 
 IMAGE = "image"
@@ -278,9 +300,6 @@ class Unit:
     color_remaining = data.all_colors
     selected_bad_unit_sound = data.selected_bad_unit_sound
 
-    components: dict[str, Component] = {}
-    bars: list[Bar] = []
-    all_buttons: list[pyg.Button] = []
     button_size = pg.Rect(0, 0, 50, 50)
 
     @classmethod
@@ -299,6 +318,11 @@ class Unit:
             component = component.get_name()
         return component in self.components
 
+    def get_component(self, component: Type[Component] | str):
+        if not isinstance(component, str):
+            component = component.get_name()
+        return self.components[component]
+
     @classmethod
     def from_name(cls, w: int, h: int, name: str, team: int):
         return Unit(w, h, {Unit.TEAM: team, Unit.NAME: name})
@@ -312,6 +336,7 @@ class Unit:
         self.w = w
         self.h = h
 
+        self.id = random.random()
         self.name = info[Unit.NAME]
         self.team = info[Unit.TEAM]
         self.set_color()
@@ -325,6 +350,9 @@ class Unit:
 
         self.is_selected = False
 
+        self.components: dict[str, Component] = {}
+        self.bars: list[Bar] = []
+        self.all_buttons: list[pyg.Button] = []
         Unit.all_units.append(self)
         for component in unit_type[self.name][COMPONENTS]:
             self.add_component(component, info)
@@ -362,11 +390,11 @@ class Unit:
     @classmethod
     def destroy_all_units(cls):
         for unit in Unit.all_units:
-            unit: Unit
             unit.destroy()
+        Unit.all_units = []
 
     def __str__(self):
-        return str((self.name, self.team))
+        return str((self.name, self.team, self.id))
 
     def __repr__(self):
         return self.__str__()
@@ -399,15 +427,16 @@ class Unit:
         rect = Unit.button_size.copy()
         rect.x = (
             len(self.all_buttons) + 1
-        ) * Unit.button_size.width  # +1 for the "pass turn button"
-        self.all_buttons.append(pyg.Button(surface, function, rect))
+        ) * Unit.button_size.width  # +1 for the pass turn button
+        button = pyg.Button(surface, function, rect)
+        button.is_visible = False
+        self.all_buttons.append(button)
 
     def get_hex(self):
         """Get the hex where the unit is"""
         from hex import Hex
 
-        hex: Hex = Hex.get_hex_by_wh(self.w, self.h)
-        return hex
+        return Hex.get_hex_by_wh(self.w, self.h)
 
     def get_xy(self):
         return (self.get_hex().x, self.get_hex().y)
@@ -417,16 +446,20 @@ class Unit:
             raise ValueError(
                 f"you can't select a unit that is arleady selected, (unit selected:{ self.__str__()})",
             )
+
         if self.team != Unit.team_of_main:
             Unit.selected_bad_unit_sound.play()
             return
+
+        for button in self.all_buttons:
+            button.is_visible = True
 
         self.is_selected = True
         Unit.unit_selected = self
         for component in self.components.values():
             component.unit_selected()
-        for button in self.all_buttons:
-            button.is_visible = True
+        if self.has_component(Component_movement):
+            data.current_state = Component_movement.CHOOSE_DESTINATION_STATE
 
     def unselect(self):
         if not self.is_selected:
@@ -441,6 +474,7 @@ class Unit:
 
         for button in self.all_buttons:
             button.is_visible = False
+        data.current_state = data.click_state.SELECT_UNIT
 
     def on_click(self, clicked_hex: Hex):
         for component in self.components.values():
@@ -448,6 +482,8 @@ class Unit:
 
     def move_to(self, hex_to_go: Hex):
         """telepport the unit to the new location, doesn't check anything. if you want real movement check Component_movement"""
+        self.get_hex().unit_on_hex = None
         self.w, self.h = hex_to_go.w, hex_to_go.h
+        self.get_hex().unit_on_hex = self
         for component in self.components.values():
             component.after_movemement()

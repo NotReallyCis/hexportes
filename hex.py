@@ -11,8 +11,8 @@ class Hex:
     vertical_spacing = 56
     horizontal_spacing = 48
 
-    map_width = 100
-    map_height = 100
+    map_width = 10
+    map_height = 10
 
     hex_image = data.hex_image
     fog = data.fog
@@ -143,7 +143,7 @@ class Hex:
             Hex.hex_cursor_is_on.clicked()
 
     def clicked(self):
-        if data.current_state == data.click_stat.SELECT_UNIT:
+        if data.current_state == data.click_state.SELECT_UNIT:
             if self.unit_on_hex != None:
                 self.unit_on_hex.select()
         else:

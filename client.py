@@ -122,7 +122,7 @@ def receive_and_send_maps_info(is_sending_data: bool):
     """send (if is_sending_data is True) and receive the map info for the server
 
     Args:
-        is_sending_data (bool): give or not the own map to the server
+        is_sending_data (bool): give or not the local map to the server
     """
     if is_sending_data:
         send_map_info_to_server()

@@ -51,7 +51,7 @@ class Client:
 
     all_clients = {}
 
-    all_map_info: str = open("developpement_addon/map.txt", "r").read()
+    all_map_info: str = "[]"
     max_team_given = 0
 
     def __init__(self, client_socket: socket.socket, client_address: str):

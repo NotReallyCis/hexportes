@@ -31,15 +31,21 @@ from hex import Hex
 import unit
 import camera_movement
 
+import data
+
 
 def end_of_turn(is_sending_data_to_server: bool = True):
 
     client.receive_and_send_maps_info(is_sending_data_to_server)
     client.start_waiting_loop()
-    data.current_state = data.click_stat.SELECT_UNIT
+    data.current_state = data.click_state.SELECT_UNIT
 
 
-import data
+def unselect_unit():
+    if unit.Unit.unit_selected is None:
+        return
+    unit.Unit.unit_selected.unselect()
+
 
 pyg.Button(
     data.next_turn_button,
@@ -47,7 +53,9 @@ pyg.Button(
     pg.Rect(0, 0, 50, 50),
     True,
 )
+
 pyg.keyboard.set_new_key_map("f5", True, end_of_turn)
+pyg.keyboard.set_new_key_map("escape", True, unselect_unit)
 
 
 def display_fps():
@@ -70,6 +78,7 @@ init()
 end_of_turn(False)  # it gets the map of the server at the start
 
 unit.Unit.from_name(0, 0, unit.TEST_UNIT, team)
+unit.Unit.from_name(0, 1, unit.TEST_UNIT, team + 1)
 
 while True:
     step()
