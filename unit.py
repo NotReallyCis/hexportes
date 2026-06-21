@@ -128,9 +128,10 @@ class Component_movement(Component):
         if hex.unit_on_hex is not None or hex not in self.possible_hexs_to_go:
             self.unit.unselect()
             return
-        fuel_after_movement = self.fuel - (
-            self.movement_point - self.possible_hexs_to_go[hex]
-        )
+        fuel_after_movement = self.fuel - self.possible_hexs_to_go[hex]
+        print(
+            self.fuel, self.possible_hexs_to_go[hex], self.possible_hexs_to_go
+        )  # FIXME
         if fuel_after_movement < 0:
             self.unit.unselect()
             return
@@ -199,7 +200,8 @@ class Component_attack(Component):
         self.ammo = info.get(self.AMMO, max_ammo)
         self.attack_range = unit.get_type_info()[self.RANGE]
 
-        self.add_bar(Bar("red", max_ammo, self.ammo))
+        self.ammo_bar = Bar("red", max_ammo, self.ammo)
+        self.add_bar(self.ammo_bar)
         self.unit.add_button(
             Component_attack.attack_button, Component_attack.switch_attack_mode
         )
@@ -222,6 +224,7 @@ class Component_attack(Component):
             or (not unit.has_component(Component_attack))
         ):
             return
+        self.ammo_bar.value -= 1
         pv_component: Component_pv = unit.get_component(Component_pv)
         pv_component.damage(self.damage)
 
@@ -263,14 +266,49 @@ class Component_pv(Component):
             self.unit.destroy()
 
 
+class Component_fabricator(Component):
+    CAN_CREATE_UNIT = "unit can create"
+    unit_selected_to_fabricate: str | None = None
+
+    def __init__(self, unit, info):
+        super().__init__(unit, info)
+        for unit_name in self.unit.get_type_info()[self.CAN_CREATE_UNIT]:
+            button_surface = data.fabricate_unit_background_button
+            unit_surface = get_unit_image_by_unit_and_color(
+                (unit_name), self.unit.color
+            )
+            unit_surface = pg.transform.scale(unit_surface, (16, 15))
+            button_surface.blit(unit_surface, (0, 0))
+            self.unit.add_button(
+                button_surface,
+                Component_fabricator.set_unit_selected,
+                (unit_name,),
+            )
+
+    @staticmethod
+    def set_unit_selected(unit_name: str):
+        Component_fabricator.unit_selected_to_fabricate = unit_name
+
+    def step(self):
+        print(Component_fabricator.unit_selected_to_fabricate)
+
+
 IMAGE = "image"
 COMPONENTS = "components"
 
-TEST_UNIT = "first_test"
+TEST_UNIT = "test unit"
+TEST_USINE = "test usine"
 
 unit_type = {
-    TEST_UNIT: {
+    TEST_USINE: {
         IMAGE: "tile-village.png",
+        COMPONENTS: [Component_pv, Component_vision, Component_fabricator],
+        Component_vision.VIEW_RANGE: 5,
+        Component_pv.MAX_PV: 10,
+        Component_fabricator.CAN_CREATE_UNIT: {TEST_UNIT: 10},
+    },
+    TEST_UNIT: {
+        IMAGE: "tile-animal-cow.png",
         COMPONENTS: [
             Component_pv,
             Component_movement,
@@ -423,12 +461,12 @@ class Unit:
         for i, bar in enumerate(self.bars):
             bar.draw((x, y - (i * Bar.height)))
 
-    def add_button(self, surface: pg.Surface, function: "function"):
+    def add_button(self, surface: pg.Surface, function: "function", args: tuple = ()):
         rect = Unit.button_size.copy()
         rect.x = (
             len(self.all_buttons) + 1
         ) * Unit.button_size.width  # +1 for the pass turn button
-        button = pyg.Button(surface, function, rect)
+        button = pyg.Button(surface, function, rect, args)
         button.is_visible = False
         self.all_buttons.append(button)
 

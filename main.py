@@ -78,7 +78,7 @@ init()
 end_of_turn(False)  # it gets the map of the server at the start
 
 unit.Unit.from_name(0, 0, unit.TEST_UNIT, team)
-unit.Unit.from_name(0, 1, unit.TEST_UNIT, team + 1)
+unit.Unit.from_name(1, 0, unit.TEST_USINE, team)
 
 while True:
     step()

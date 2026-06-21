@@ -91,6 +91,10 @@ next_turn_button = load("assets/image/end_turn_button.png")
 go_button = load("assets/image/go_button.png")
 attack_button = load("assets/image/attack_button.png")
 
+fabricate_unit_background_button = load(
+    "image/background_selected_unit_to_fabricate_button"
+)
+
 hex_can_go = load("image/can_go_tile")
 hex_mouse_on = load("image/mouse_on_tile")
 hex_can_attack = load("image/can_attack_tile")

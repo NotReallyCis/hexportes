@@ -159,12 +159,21 @@ class Hex:
         return round(x), round(y)
 
     @classmethod
-    def get_hex_by_wh(cls, w: int, h: int) -> "Hex":
-        if Hex.is_wh_inside_border(w, h):
-            output: Hex = Hex.all_hexs[w][h]
-            return output
-        else:
+    def get_hex_by_wh(
+        cls, w: int, h: int, return_None_if_outside: bool = False
+    ) -> "Hex":
+        """
+        return_None_if_outside (bool, optional): Return None if the position is outside the world. Defaults to False.
+
+        """
+
+        if not Hex.is_wh_inside_border(w, h):
+            if return_None_if_outside:
+                return None
             raise ValueError(f"{w},{h} are not inside worlds border")
+
+        output: Hex = Hex.all_hexs[w][h]
+        return output
 
     @classmethod
     def get_hex_by_xy(cls, pos: tuple[int, int]):
@@ -251,24 +260,21 @@ class Hex:
 
     @classmethod
     def load_hex__str__(cls, w: int, h: int, info: dict[str] | None):
-        import unit
-
-        hex: Hex = Hex.get_hex_by_wh(w, h)
-
         if info is None:
             return
-        else:
-            Unit(hex.w, hex.h, info)
+
+        hex = Hex.get_hex_by_wh(w, h)
+        Unit(hex.w, hex.h, info)
 
     def search_hex(
         self,
         movement_point_possessed: int,
         is_hex_weight_matter: bool,
     ):
-        """_summary_
+        """Does a pathfinding search to find all hexs that can be reached from the "self" hex
 
         Args:
-            movement_point_possessed (int): _description_
+            movement_point_possessed (int): the number of movement point you have
             is_hex_weight_matter (bool): does the weight of the hex you go to are counted
         """
 
