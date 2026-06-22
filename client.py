@@ -26,11 +26,11 @@ class Client:
     @classmethod
     def init(cls):
 
-        print("port=", Client.port, "addr=", Client.address)
+        print(f"""port= {Client.port}, addr= {Client.address}
+        trying to connect to {Server.port, Server.address})""")
 
-        print("trying to connect to", Server.port, ",", Server.address)
         Client.socket_to_server = Client.connect(Server.port, Server.address)
-        print("connected to", Server.port, ",", Server.address)
+        print(f"connected to {Server.port,Server.address}")
 
         Client.get_intro_data_from_server()
 

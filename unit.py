@@ -56,7 +56,7 @@ class Bar:
 class Component(abc.ABC):
     """Base class for all components"""
 
-    def __init__(self, unit: Unit, info: dict[str]):
+    def __init__(self, unit: "Unit", info: dict[str]):
         self.unit = unit
         self.unit.components[self.get_name()] = self
 
@@ -128,10 +128,7 @@ class Component_movement(Component):
         if hex.unit_on_hex is not None or hex not in self.possible_hexs_to_go:
             self.unit.unselect()
             return
-        fuel_after_movement = self.fuel - self.possible_hexs_to_go[hex]
-        print(
-            self.fuel, self.possible_hexs_to_go[hex], self.possible_hexs_to_go
-        )  # FIXME
+        fuel_after_movement = self.fuel - self.possible_hexs_to_go[hex]  # FIXME
         if fuel_after_movement < 0:
             self.unit.unselect()
             return
@@ -268,6 +265,7 @@ class Component_pv(Component):
 
 class Component_fabricator(Component):
     CAN_CREATE_UNIT = "unit can create"
+    CREATE_UNIT_STATE = "state create unit"
     unit_selected_to_fabricate: str | None = None
 
     def __init__(self, unit, info):
@@ -284,13 +282,30 @@ class Component_fabricator(Component):
                 Component_fabricator.set_unit_selected,
                 (unit_name,),
             )
+        self.fabrication_hexs: list[Hex]
+
+    def reload_fabrication_hexs(self):
+        self.fabrication_hexs = self.unit.get_hex().get_hexs_around_hex()
 
     @staticmethod
     def set_unit_selected(unit_name: str):
         Component_fabricator.unit_selected_to_fabricate = unit_name
+        data.current_state = Component_fabricator.CREATE_UNIT_STATE
+
+    def unit_unselected(self):
+        Component_fabricator.unit_selected_to_fabricate = None
+        return super().unit_unselected()
 
     def step(self):
-        print(Component_fabricator.unit_selected_to_fabricate)
+        if (
+            self.unit.is_selected
+            and data.current_state == Component_fabricator.CREATE_UNIT_STATE
+        ):
+            self.reload_fabrication_hexs()
+            for hex in self.fabrication_hexs:
+                hex.draw_surface_on_top(data.hex_can_fabricate)
+
+        return super().step()
 
 
 IMAGE = "image"
@@ -332,8 +347,8 @@ def get_unit_image_by_unit_and_color(unit_name: str, color: str):
 
 
 class Unit:
-    all_units: list[Unit] = []
-    unit_selected: None | Unit = None
+    all_units: list["Unit"] = []
+    unit_selected: None | "Unit" = None
 
     color_remaining = data.all_colors
     selected_bad_unit_sound = data.selected_bad_unit_sound
@@ -409,7 +424,7 @@ class Unit:
         return unit_type[self.name]
 
     def set_image(self):
-        self.image = get_unit_image_by_unit_and_color(self.name, self.color)
+        self.surface = get_unit_image_by_unit_and_color(self.name, self.color)
 
     def set_color(self):
         if self.team in Unit.map_teams_to_color.keys():
@@ -451,10 +466,7 @@ class Unit:
             unit.step()
 
     def draw(self):
-        from hex import Hex
-
-        x, y = Hex.get_xy_by_wh(self.w, self.h)
-        camera(self.image, (x, y))
+        self.get_hex().draw_surface_on_top(self.surface)
 
     def draw_info(self):
         x, y = self.get_xy()

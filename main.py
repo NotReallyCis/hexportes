@@ -69,7 +69,6 @@ def step():
     unit.Unit.step_all_units()
 
     camera_movement.step()
-
     pg.display.flip()
     screen.fill((0, 0, 0))
 

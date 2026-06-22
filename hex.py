@@ -2,6 +2,7 @@ import pygame as pg
 import math, data, random
 from unit import Unit
 import pyg
+import camera_movement
 
 
 class Hex:
@@ -95,7 +96,10 @@ class Hex:
 
     @classmethod
     def draw_all(cls):
-        pyg.camera(Hex.all_hexs_surface, (0, 0), 1)
+
+        pyg.camera.scale_and_show_optimized(
+            Hex.all_hexs_surface, (0, 0), camera_movement.zoom_level, 1
+        )
         pyg.camera(
             Hex.all_hexs_fog_surface,
             (0, 0),
@@ -151,11 +155,14 @@ class Hex:
 
     @classmethod
     def get_xy_by_wh(cls, w: int, h: int):
-        x = w * Hex.horizontal_spacing
+        x = w * Hex.horizontal_spacing * camera_movement.zoom_level
         if pyg.is_even(w):
-            y = h * Hex.vertical_spacing
+            y = h * Hex.vertical_spacing * camera_movement.zoom_level
         else:
-            y = (h * Hex.vertical_spacing) + (Hex.vertical_spacing / 2)
+            y = (
+                (h * Hex.vertical_spacing) + (Hex.vertical_spacing / 2)
+            ) * camera_movement.zoom_level
+
         return round(x), round(y)
 
     @classmethod

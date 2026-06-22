@@ -30,8 +30,8 @@ def unzoom():
     zoom_level *= 2
 
 
-keyboard.on_mouswheel_scroll(zoom, True)
-keyboard.on_mouswheel_scroll(unzoom, False)
+keyboard.on_mouswheel_scroll(zoom, False)
+keyboard.on_mouswheel_scroll(unzoom, True)
 
 
 def step():

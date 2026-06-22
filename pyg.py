@@ -429,6 +429,17 @@ class camera:
         )
 
     @classmethod
+    def scale_and_show_optimized(
+        cls, surface: pg.Surface, pos: tuple, scale_factor: int, depth: int = 0
+    ):
+        """optimized to blit large surface (bigger than the screen)"""
+        scale_factor_step = 2
+        """the step of scale factor"""
+        surface = pg.transform.chop(surface, camera.screen.get_rect())
+        print(surface.get_size(), camera.screen.get_rect(), scale_factor)
+        camera(surface, pos, depth)
+
+    @classmethod
     def step(cls):
         camera.apply_movement()
         Camera_effect.step_all()

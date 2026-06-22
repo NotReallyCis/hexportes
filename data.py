@@ -98,7 +98,7 @@ fabricate_unit_background_button = load(
 hex_can_go = load("image/can_go_tile")
 hex_mouse_on = load("image/mouse_on_tile")
 hex_can_attack = load("image/can_attack_tile")
-
+hex_can_fabricate = load("image/can_fabricate_tile")
 if pg.display.get_active():
     background_waiting_image = pg.transform.scale(
         load("assets/image/placeholder_image_waiting.png"),
