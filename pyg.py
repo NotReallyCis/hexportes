@@ -428,16 +428,20 @@ class camera:
             (surface, position, is_blocked_on_screen, special_flags)
         )
 
-    @classmethod
-    def scale_and_show_optimized(
-        cls, surface: pg.Surface, pos: tuple, scale_factor: int, depth: int = 0
-    ):
-        """optimized to blit large surface (bigger than the screen)"""
-        scale_factor_step = 2
-        """the step of scale factor"""
-        surface = pg.transform.chop(surface, camera.screen.get_rect())
-        print(surface.get_size(), camera.screen.get_rect(), scale_factor)
-        camera(surface, pos, depth)
+    @staticmethod
+    @Profiler
+    def show_map(surface: pg.Surface, scale_factor: int, depth: int = 0):
+        """optimized to blit large surface (bigger than the screen) and scale it"""
+        if scale_factor < 1:
+            scaled_surface = pg.transform.scale_by(surface, scale_factor)
+            camera(scaled_surface, (0, 0), depth)
+            return
+
+        cropped_surface = pg.Surface(camera.rect.size, pg.SRCALPHA)
+        cropped_surface.blit(surface, (-camera.rect.x, -camera.rect.y))
+
+        scaled_surface = pg.transform.scale_by(cropped_surface, scale_factor)
+        camera(scaled_surface, (0, 0), depth, True)
 
     @classmethod
     def step(cls):

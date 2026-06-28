@@ -3,9 +3,9 @@ from pyg import keyboard, camera
 camera_speed = 6
 
 
-zoom_level = 1
-min_zoom = 0.1
-max_zoom = 100
+possibles_zoom: list[float] = [0.25, 0.5, 1.0]
+zoom_index: int = 2
+zoom_level = possibles_zoom[zoom_index]
 
 
 def horizontal_camera_movement(direction: int):
@@ -17,17 +17,19 @@ def vertical_camera_movement(direction: int):
 
 
 def zoom():
-    global zoom_level
-    if zoom_level < min_zoom:
+    global zoom_level, zoom_index
+    if zoom_index <= 0:
         return
-    zoom_level /= 2
+    zoom_index -= 1
+    zoom_level = possibles_zoom[zoom_index]
 
 
 def unzoom():
-    global zoom_level
-    if zoom_level > max_zoom:
+    global zoom_level, zoom_index
+    if zoom_index >= (possibles_zoom.__len__() - 1):
         return
-    zoom_level *= 2
+    zoom_index += 1
+    zoom_level = possibles_zoom[zoom_index]
 
 
 keyboard.on_mouswheel_scroll(zoom, False)

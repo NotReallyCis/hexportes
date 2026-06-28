@@ -7,12 +7,10 @@ import pyg
 
 team: int
 screen = pg.display.set_mode((720, 500))
-fps = 120
+fps = 75
 
 pg.init()
-pyg.init_all_module(
-    fps,
-)
+pyg.init_all_module(fps, True)
 
 import client
 

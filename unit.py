@@ -489,7 +489,7 @@ class Unit:
         return Hex.get_hex_by_wh(self.w, self.h)
 
     def get_xy(self):
-        return (self.get_hex().x, self.get_hex().y)
+        return self.get_hex().pos
 
     def select(self):
         if self.is_selected:

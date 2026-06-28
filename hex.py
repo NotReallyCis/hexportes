@@ -7,16 +7,16 @@ import camera_movement
 
 class Hex:
 
-    width = 64
-    height = 64
-    vertical_spacing = 56
-    horizontal_spacing = 48
+    width = 64 * 2
+    height = 64 * 2
+    vertical_spacing = 56 * 2
+    horizontal_spacing = 48 * 2
 
-    map_width = 10
-    map_height = 10
+    map_width = 40
+    map_height = 40
 
-    hex_image = data.hex_image
-    fog = data.fog
+    hex_image = pg.transform.scale(data.hex_image, (width, height))
+    fog = pg.transform.scale(data.fog, (width, height))
 
     all_hexs_surface = pg.Surface(
         (width * map_width, height * map_height + (height / 2))
@@ -24,6 +24,9 @@ class Hex:
     all_hexs_fog_surface = pg.Surface(
         (width * map_width, height * map_height + (height / 2)), pg.SRCALPHA
     )
+
+    maps_zoom: list[pg.Surface]
+    maps_zoom_fog: list[pg.Surface]
 
     mask = pg.mask.from_surface(hex_image, 1)
 
@@ -52,12 +55,10 @@ class Hex:
 
         self.w = w
         self.h = h
-        self.x, self.y = Hex.get_xy_by_wh(self.w, self.h)
-
-        self.rect = pg.Rect(self.x, self.y, self.width, self.height)
 
         self.type = type
         self.surface = Hex.terrain_types[type][Hex.SURFACE]
+        self.surface = pg.transform.scale(self.surface, (Hex.width, Hex.height))
         Hex.all_hexs_surface.blit(self.surface, self.get_xy_by_wh(self.w, self.h))
 
         self.weight = Hex.terrain_types[type][Hex.WEIGHT]
@@ -79,7 +80,7 @@ class Hex:
             for h in range(Hex.map_height):
                 type = random.choice(list(Hex.terrain_types.keys()))
                 Hex.all_hexs[w].append(Hex(w, h, type))
-        return Hex.all_hexs[w]
+        Hex.reset_maps_zoom()
 
     @classmethod
     def on_end_of_turn(cls):
@@ -94,22 +95,25 @@ class Hex:
         Hex.draw_all()
         Hex.hex_cursor_is_on = Hex.get_hex_by_xy(pyg.keyboard.mouse_position.xy)
 
-    @classmethod
-    def draw_all(cls):
+    @staticmethod
+    @pyg.Profiler
+    def draw_all():
 
-        pyg.camera.scale_and_show_optimized(
-            Hex.all_hexs_surface, (0, 0), camera_movement.zoom_level, 1
-        )
-        pyg.camera(
-            Hex.all_hexs_fog_surface,
-            (0, 0),
-            2,
-        )
+        pyg.camera.show_map(Hex.maps_zoom[camera_movement.zoom_index], 1, 1)
+        pyg.camera.show_map(Hex.all_hexs_fog_surface, camera_movement.zoom_level, 1)
+
+    @classmethod
+    def reset_maps_zoom(cls):
+        Hex.maps_zoom = []
+        for possible_zoom in camera_movement.possibles_zoom:
+            Hex.maps_zoom.append(
+                pg.transform.scale_by(Hex.all_hexs_surface, possible_zoom)
+            )
 
     def add_fog(self):
         if self.is_visible == False:
             return
-        Hex.all_hexs_fog_surface.blit(Hex.fog, (self.x, self.y))
+        Hex.all_hexs_fog_surface.blit(Hex.fog, self.pos)
         self.is_visible = False
 
     def remove_fog(self):
@@ -119,13 +123,13 @@ class Hex:
             Hex.all_hexs_fog_surface,
             setcolor=(0, 0, 0, 0),  # put on white becuse I use BLEND_RGBA_MULT
             unsetcolor=None,
-            dest=(self.x, self.y),
+            dest=self.pos,
         )
         self.is_visible = True
 
     def draw_surface_on_top(self, surface: pg.Surface, special_flags: int = 0):
         """blit a custom surface on top of the hex (eg: can_go_tile)"""
-        pyg.camera(surface, (self.x, self.y), -101, False, False, special_flags)
+        pyg.camera(surface, self.pos, -101, False, False, special_flags)
 
     def is_position_in_hex(self, position: tuple[int, int] | pg.Vector2) -> bool:
         return (
@@ -133,7 +137,7 @@ class Hex:
                 position[0], position[1]
             )  # check for collision with the rect first for optimisation
             and (
-                Hex.mask.get_at((position[0] - self.x, position[1] - self.y))
+                Hex.mask.get_at((position[0] - self.pos[0], position[1] - self.pos[1]))
             )  # pixel perfect
             and (not pyg.Button.is_position_in_zone_covered(position[0], position[1]))
         )
@@ -164,6 +168,14 @@ class Hex:
             ) * camera_movement.zoom_level
 
         return round(x), round(y)
+
+    @property
+    def pos(self):
+        return Hex.get_xy_by_wh(self.w, self.h)
+
+    @property
+    def rect(self):
+        return pg.Rect(*self.pos, self.width, self.height)
 
     @classmethod
     def get_hex_by_wh(
