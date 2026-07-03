@@ -12,8 +12,8 @@ class Hex:
     vertical_spacing = 56 * 2
     horizontal_spacing = 48 * 2
 
-    map_width = 40
-    map_height = 40
+    map_width = 10
+    map_height = 10
 
     hex_image = pg.transform.scale(data.hex_image, (width, height))
     fog = pg.transform.scale(data.fog, (width, height))
@@ -24,9 +24,10 @@ class Hex:
     all_hexs_fog_surface = pg.Surface(
         (width * map_width, height * map_height + (height / 2)), pg.SRCALPHA
     )
+    all_hexs_fog_surface.convert_alpha()
 
-    maps_zoom: list[pg.Surface]
-    maps_zoom_fog: list[pg.Surface]
+    map_zoom: list[pg.Surface]
+    map_zoom_fog: list[pg.Surface]
 
     mask = pg.mask.from_surface(hex_image, 1)
 
@@ -80,56 +81,80 @@ class Hex:
             for h in range(Hex.map_height):
                 type = random.choice(list(Hex.terrain_types.keys()))
                 Hex.all_hexs[w].append(Hex(w, h, type))
-        Hex.reset_maps_zoom()
+        Hex.reset_maps_surface()
+        Hex.reload_fog_surface()
 
     @classmethod
     def on_end_of_turn(cls):
         for line in Hex.all_hexs:
             for hex in line:
                 hex: Hex
-                hex.add_fog()
+                hex.add_fog(False)
+        Hex.reload_fog_surface()
 
     @classmethod
     @pyg.Profiler
     def step_to_all_hex(cls):
         Hex.draw_all()
         Hex.hex_cursor_is_on = Hex.get_hex_by_xy(pyg.keyboard.mouse_position.xy)
+        if Hex.hex_cursor_is_on is not None:
+            Hex.hex_cursor_is_on.draw_surface_on_top(data.hex_mouse_on)
 
     @staticmethod
     @pyg.Profiler
     def draw_all():
-
-        pyg.camera.show_map(Hex.maps_zoom[camera_movement.zoom_index], 1, 1)
-        pyg.camera.show_map(Hex.all_hexs_fog_surface, camera_movement.zoom_level, 1)
+        pyg.camera(Hex.map_zoom[camera_movement.zoom_index], (0, 0), 1)
+        pyg.camera(Hex.map_zoom_fog[camera_movement.zoom_index], (0, 0), 2)
 
     @classmethod
-    def reset_maps_zoom(cls):
-        Hex.maps_zoom = []
+    def reset_maps_surface(cls):
+        Hex.map_zoom = []
         for possible_zoom in camera_movement.possibles_zoom:
-            Hex.maps_zoom.append(
+            Hex.map_zoom.append(
                 pg.transform.scale_by(Hex.all_hexs_surface, possible_zoom)
             )
 
-    def add_fog(self):
+    @classmethod
+    def reload_fog_surface(cls):
+        Hex.map_zoom_fog = []
+        for possible_zoom in camera_movement.possibles_zoom:
+            Hex.map_zoom_fog.append(
+                pg.transform.scale_by(Hex.all_hexs_fog_surface, possible_zoom)
+            )
+
+    def add_fog(self, reload_fog_zoom: bool = False):
         if self.is_visible == False:
             return
         Hex.all_hexs_fog_surface.blit(Hex.fog, self.pos)
         self.is_visible = False
+        if reload_fog_zoom:
+            Hex.reload_fog_surface()
 
-    def remove_fog(self):
+    def remove_fog(self, reload_fog_zoom: bool = False):
         if self.is_visible == True:
             return
         Hex.mask.to_surface(
             Hex.all_hexs_fog_surface,
-            setcolor=(0, 0, 0, 0),  # put on white becuse I use BLEND_RGBA_MULT
+            setcolor=(0, 0, 0, 0),
             unsetcolor=None,
             dest=self.pos,
         )
         self.is_visible = True
+        if reload_fog_zoom:
+            Hex.reload_fog_surface()
 
     def draw_surface_on_top(self, surface: pg.Surface, special_flags: int = 0):
         """blit a custom surface on top of the hex (eg: can_go_tile)"""
-        pyg.camera(surface, self.pos, -101, False, False, special_flags)
+        pyg.camera(
+            pg.transform.scale_by(
+                surface, camera_movement.zoom_level * 2
+            ),  # *2 cuz to keep surface of 64 by 64
+            self.pos,
+            -101,
+            False,
+            False,
+            special_flags,
+        )
 
     def is_position_in_hex(self, position: tuple[int, int] | pg.Vector2) -> bool:
         return (

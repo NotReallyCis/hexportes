@@ -432,9 +432,13 @@ class camera:
     @Profiler
     def show_map(surface: pg.Surface, scale_factor: int, depth: int = 0):
         """optimized to blit large surface (bigger than the screen) and scale it"""
+
         if scale_factor < 1:
-            scaled_surface = pg.transform.scale_by(surface, scale_factor)
-            camera(scaled_surface, (0, 0), depth)
+            camera(
+                pg.transform.scale_by(surface, scale_factor),
+                (0, 0),
+                depth,
+            )
             return
 
         cropped_surface = pg.Surface(camera.rect.size, pg.SRCALPHA)

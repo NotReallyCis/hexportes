@@ -10,7 +10,7 @@ screen = pg.display.set_mode((720, 500))
 fps = 75
 
 pg.init()
-pyg.init_all_module(fps, True)
+pyg.init_all_module(fps, False)
 
 import client
 
@@ -72,7 +72,7 @@ def step():
 
 
 init()
-end_of_turn(False)  # it gets the map of the server at the start
+end_of_turn(False)  # it gets the map ofs the server at the start
 
 unit.Unit.from_name(0, 0, unit.TEST_UNIT, team)
 unit.Unit.from_name(1, 0, unit.TEST_USINE, team)

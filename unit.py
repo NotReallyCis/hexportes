@@ -1,6 +1,6 @@
 from pyg import camera, draw, get_percentage
 import pygame as pg
-import data, pyg, abc, random
+import data, pyg, abc, random, camera_movement
 from typing import Type
 
 from typing import TYPE_CHECKING
@@ -22,8 +22,8 @@ def get_variable(variable, default):
 
 
 class Bar:
-    height = 5
-    width = 50
+    height = 10
+    width = 100
 
     def __init__(self, color: pg.Color, max_value: int, value: int = None):
         self.color = color
@@ -50,7 +50,7 @@ class Bar:
         return surface
 
     def draw(self, pos):
-        camera(self.surface, pos)
+        camera(pg.transform.scale_by(self.surface, camera_movement.zoom_level), pos)
 
 
 class Component(abc.ABC):
@@ -109,7 +109,6 @@ class Component_movement(Component):
 
     def get_info(self):
         return {
-            Component_movement.MOVEMENT_POINT: self.default_movement_point,
             Component_movement.FUEL: self.fuel,
         }
 
@@ -128,7 +127,7 @@ class Component_movement(Component):
         if hex.unit_on_hex is not None or hex not in self.possible_hexs_to_go:
             self.unit.unselect()
             return
-        fuel_after_movement = self.fuel - self.possible_hexs_to_go[hex]  # FIXME
+        fuel_after_movement = self.fuel - self.possible_hexs_to_go[hex]
         if fuel_after_movement < 0:
             self.unit.unselect()
             return
@@ -174,6 +173,7 @@ class Component_vision(Component):
         visible_hexs = self.unit.get_hex().search_hex(self.view_range, False)
         for hex in visible_hexs:
             hex.remove_fog()
+        hex.reload_fog_surface()
 
     def after_movemement(self):
         self.calculate_vision()
@@ -389,7 +389,7 @@ class Unit:
         self.w = w
         self.h = h
 
-        self.id = random.random()
+        self.id = random.randint(0, 2048)
         self.name = info[Unit.NAME]
         self.team = info[Unit.TEAM]
         self.set_color()
@@ -397,7 +397,7 @@ class Unit:
 
         if self.get_hex().unit_on_hex != None:
             raise ValueError(
-                f"hex({w,h}) is arleady taken by another unit, can't generate here"
+                f"hex({w,h}) is arleady taken by {self.get_hex().unit_on_hex}, can't generate here"
             )
         self.get_hex().unit_on_hex = self
 
@@ -471,7 +471,7 @@ class Unit:
     def draw_info(self):
         x, y = self.get_xy()
         for i, bar in enumerate(self.bars):
-            bar.draw((x, y - (i * Bar.height)))
+            bar.draw((x, y - (i * Bar.height * camera_movement.zoom_level)))
 
     def add_button(self, surface: pg.Surface, function: "function", args: tuple = ()):
         rect = Unit.button_size.copy()
