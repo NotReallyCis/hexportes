@@ -45,6 +45,10 @@ def unselect_unit():
     unit.Unit.unit_selected.unselect()
 
 
+def get_number_of_player():
+    return unit.Unit.map_teams_to_color.__len__()
+
+
 pyg.Button(
     data.next_turn_button,
     end_of_turn,
@@ -54,6 +58,17 @@ pyg.Button(
 
 pyg.keyboard.set_new_key_map("f5", True, end_of_turn)
 pyg.keyboard.set_new_key_map("escape", True, unselect_unit)
+
+start_unit = [
+    {(0, 0): unit.TEST_TRUCK, (1, 0): unit.TEST_USINE, (2, 0): unit.TEST_MINER},
+    {(1, 5): unit.TEST_USINE, (2, 5): unit.TEST_UNIT},
+]
+
+
+def create_start_units():
+    for unit_position in start_unit[get_number_of_player() - 1]:
+        unit_name = start_unit[get_number_of_player() - 1][unit_position]
+        unit.Unit.from_name(*unit_position, unit_name, team)
 
 
 def display_fps():
@@ -72,10 +87,8 @@ def step():
 
 
 init()
-end_of_turn(False)  # it gets the map ofs the server at the start
-
-unit.Unit.from_name(0, 0, unit.TEST_UNIT, team)
-unit.Unit.from_name(1, 0, unit.TEST_USINE, team)
+end_of_turn(False)  # it gets the map of the server at the start
+create_start_units()
 
 while True:
     step()

@@ -90,23 +90,27 @@ next_turn_button = load("assets/image/end_turn_button.png")
 
 go_button = load("assets/image/go_button.png")
 attack_button = load("assets/image/attack_button.png")
-
+transport_button=load("assets/image/transport_button")
 fabricate_unit_background_button = load(
     "image/background_selected_unit_to_fabricate_button"
 )
 
-hex_can_go = load("image/can_go_tile")
 hex_mouse_on = load("image/mouse_on_tile")
+hex_can_go = load("image/can_go_tile")
 hex_can_attack = load("image/can_attack_tile")
 hex_can_fabricate = load("image/can_fabricate_tile")
+hex_can_transport = load("image/can_transport_tile")
+
+
 if pg.display.get_active():
     background_waiting_image = pg.transform.scale(
         load("assets/image/placeholder_image_waiting.png"),
         pg.display.get_surface().get_size(),
     )
 
-fuel_icon = load("assets/image/fuel_icon.png")
 
+unit_test_1 = load("assets/unit/tile-farm-sown")
+unit_test_2 = load("assets/unit/tile-forest")
 
 ### click stat ###
 current_state = None

@@ -20,7 +20,7 @@ class Client:
         1, 1000
     )  # it's random so maybe it can be the same as someone else though it's 0.1% chance
     address = socket.gethostbyname(socket.gethostname())
-    socket_to_server: socket.socket = None
+    socket_to_server: socket.socket
     id: int
 
     @classmethod

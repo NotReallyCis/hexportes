@@ -12,8 +12,8 @@ class Hex:
     vertical_spacing = 56 * 2
     horizontal_spacing = 48 * 2
 
-    map_width = 10
-    map_height = 10
+    map_width = 30
+    map_height = 30
 
     hex_image = pg.transform.scale(data.hex_image, (width, height))
     fog = pg.transform.scale(data.fog, (width, height))
@@ -29,7 +29,7 @@ class Hex:
     map_zoom: list[pg.Surface]
     map_zoom_fog: list[pg.Surface]
 
-    mask = pg.mask.from_surface(hex_image, 1)
+    hex_mask_no_zoom = pg.mask.from_surface(hex_image, 1)
 
     all_hexs: list[list["Hex"]] = []
 
@@ -57,6 +57,8 @@ class Hex:
         self.w = w
         self.h = h
 
+        self.true_pos = self.pos
+        """never changes"""
         self.type = type
         self.surface = Hex.terrain_types[type][Hex.SURFACE]
         self.surface = pg.transform.scale(self.surface, (Hex.width, Hex.height))
@@ -89,7 +91,7 @@ class Hex:
         for line in Hex.all_hexs:
             for hex in line:
                 hex: Hex
-                hex.add_fog(False)
+                hex.add_fog()
         Hex.reload_fog_surface()
 
     @classmethod
@@ -97,6 +99,7 @@ class Hex:
     def step_to_all_hex(cls):
         Hex.draw_all()
         Hex.hex_cursor_is_on = Hex.get_hex_by_xy(pyg.keyboard.mouse_position.xy)
+
         if Hex.hex_cursor_is_on is not None:
             Hex.hex_cursor_is_on.draw_surface_on_top(data.hex_mouse_on)
 
@@ -125,7 +128,7 @@ class Hex:
     def add_fog(self, reload_fog_zoom: bool = False):
         if self.is_visible == False:
             return
-        Hex.all_hexs_fog_surface.blit(Hex.fog, self.pos)
+        Hex.all_hexs_fog_surface.blit(Hex.fog, self.true_pos)
         self.is_visible = False
         if reload_fog_zoom:
             Hex.reload_fog_surface()
@@ -133,11 +136,12 @@ class Hex:
     def remove_fog(self, reload_fog_zoom: bool = False):
         if self.is_visible == True:
             return
-        Hex.mask.to_surface(
+
+        Hex.hex_mask_no_zoom.to_surface(
             Hex.all_hexs_fog_surface,
             setcolor=(0, 0, 0, 0),
             unsetcolor=None,
-            dest=self.pos,
+            dest=self.true_pos,
         )
         self.is_visible = True
         if reload_fog_zoom:
@@ -162,7 +166,7 @@ class Hex:
                 position[0], position[1]
             )  # check for collision with the rect first for optimisation
             and (
-                Hex.mask.get_at((position[0] - self.pos[0], position[1] - self.pos[1]))
+                self.mask.get_at((position[0] - self.pos[0], position[1] - self.pos[1]))
             )  # pixel perfect
             and (not pyg.Button.is_position_in_zone_covered(position[0], position[1]))
         )
@@ -176,9 +180,11 @@ class Hex:
             Hex.hex_cursor_is_on.clicked()
 
     def clicked(self):
-        if data.current_state == data.click_state.SELECT_UNIT:
-            if self.unit_on_hex != None:
-                self.unit_on_hex.select()
+        if (
+            data.current_state == data.click_state.SELECT_UNIT
+            and Unit.unit_selected is None
+        ):
+            self.unit_on_hex.select()
         else:
             Unit.unit_selected.on_click(self)
 
@@ -196,11 +202,22 @@ class Hex:
 
     @property
     def pos(self):
+        """return the xy with the current zoom applied (change depending on zoom)"""
         return Hex.get_xy_by_wh(self.w, self.h)
 
     @property
     def rect(self):
-        return pg.Rect(*self.pos, self.width, self.height)
+        return pg.Rect(
+            *self.pos,
+            self.width * camera_movement.zoom_level,
+            self.height * camera_movement.zoom_level,
+        )
+
+    @property
+    def mask(self):
+
+        scaled_mask = Hex.hex_mask_no_zoom.scale(self.rect.size)
+        return scaled_mask
 
     @classmethod
     def get_hex_by_wh(
@@ -221,13 +238,11 @@ class Hex:
 
     @classmethod
     def get_hex_by_xy(cls, pos: tuple[int, int]):
-        x, y = pos
-        w = math.floor(x / Hex.horizontal_spacing)
-        h = math.floor(y / Hex.vertical_spacing)
+        w = math.floor(pos[0] / camera_movement.zoom_level / Hex.horizontal_spacing)
+        h = math.floor(pos[1] / camera_movement.zoom_level / Hex.vertical_spacing)
 
         if not Hex.is_wh_inside_border(w, h):
             return None
-
         hex = Hex.get_hex_by_wh(w, h)
         if hex.is_position_in_hex(pos):
             return hex
@@ -235,6 +250,7 @@ class Hex:
         for hex_around in hex.get_hexs_around_hex():
             if hex_around.is_position_in_hex(pos):
                 return hex_around
+
         # okay well i know it doesn't look good but at least it works
 
     def get_hexs_around_hex(self):
@@ -314,6 +330,7 @@ class Hex:
         self,
         movement_point_possessed: int,
         is_hex_weight_matter: bool,
+        include_self: bool = True,
     ):
         """Does a pathfinding search to find all hexs that can be reached from the "self" hex
 
@@ -328,11 +345,12 @@ class Hex:
         movement_point_possessed += 1  # off by one error
         while True:
             if hexs_to_calculate == []:  # on end
+                if not include_self:
+                    hexs_calculated.pop(self)
                 return hexs_calculated
 
             hex_calculating, movement_point = hexs_to_calculate[0]
             hexs_to_calculate.pop(0)
-
             hexs_calculated[hex_calculating] = movement_point
 
             for hex_around in hex_calculating.get_hexs_around_hex():
@@ -340,15 +358,12 @@ class Hex:
                 hex_around_weight: int = 1
                 if is_hex_weight_matter:
                     hex_around_weight = hex_around.weight
-
                 movement_point_after_hex_around = movement_point - hex_around_weight
                 """number of movement point you have after going to the hex_around"""
                 if (
                     hex_around in hexs_calculated
-                    and movement_point_after_hex_around > hexs_calculated[hex_around]
-                ):
-                    continue
-                if movement_point_after_hex_around <= 0:
+                    and movement_point_after_hex_around < hexs_calculated[hex_around]
+                ) or movement_point_after_hex_around <= 0:
                     continue
 
                 hexs_to_calculate.append((hex_around, movement_point_after_hex_around))
