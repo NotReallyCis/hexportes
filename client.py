@@ -140,19 +140,19 @@ def receive_and_send_maps_info(is_sending_data: bool):
 
 
 def receive_map_info_from_server():
-    from hex import Hex
+    from unit import Unit
 
     uncoded_message = json.loads(Client.receive_message())
-    Hex.load_all_hexs__str__(uncoded_message)
+    Unit.load_all_info(uncoded_message)
 
     global has_receive_message_from_server
     has_receive_message_from_server = True
 
 
 def send_map_info_to_server():
-    from hex import Hex
+    from unit import Unit
 
-    Client.send(json.dumps(Hex.get_all_hexs__str__()))
+    Client.send(json.dumps(Unit.get_all_info()))
 
 
 def init_all():

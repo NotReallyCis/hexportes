@@ -24,7 +24,6 @@ class Hex:
     all_hexs_fog_surface = pg.Surface(
         (width * map_width, height * map_height + (height / 2)), pg.SRCALPHA
     )
-    all_hexs_fog_surface.convert_alpha()
 
     map_zoom: list[pg.Surface]
     map_zoom_fog: list[pg.Surface]
@@ -77,11 +76,11 @@ class Hex:
         self.add_fog()
 
     @classmethod
-    def create_hexs_map(cls):
+    def create_hexs_map(cls, map: list[str]):
         for w in range(Hex.map_width):
             Hex.all_hexs.append([])
             for h in range(Hex.map_height):
-                type = random.choice(list(Hex.terrain_types.keys()))
+                type = map[(w * Hex.map_width) + h]
                 Hex.all_hexs[w].append(Hex(w, h, type))
         Hex.reset_maps_surface()
         Hex.reload_fog_surface()
@@ -102,6 +101,17 @@ class Hex:
 
         if Hex.hex_cursor_is_on is not None:
             Hex.hex_cursor_is_on.draw_surface_on_top(data.hex_mouse_on)
+            Hex.draw_hex_position_indicator(Hex.hex_cursor_is_on)
+
+    @classmethod
+    def draw_hex_position_indicator(cls, hex: Hex):
+        text_surface = pyg.draw.text(str((hex.w, hex.h)),"red")
+        pyg.camera(
+            text_surface,
+            (pg.display.get_surface().get_width() - text_surface.get_width(), 0),
+            -1,
+            True,
+        )
 
     @staticmethod
     @pyg.Profiler
@@ -184,6 +194,8 @@ class Hex:
             data.current_state == data.click_state.SELECT_UNIT
             and Unit.unit_selected is None
         ):
+            if self.unit_on_hex is None:
+                return
             self.unit_on_hex.select()
         else:
             Unit.unit_selected.on_click(self)
@@ -197,7 +209,6 @@ class Hex:
             y = (
                 (h * Hex.vertical_spacing) + (Hex.vertical_spacing / 2)
             ) * camera_movement.zoom_level
-
         return round(x), round(y)
 
     @property

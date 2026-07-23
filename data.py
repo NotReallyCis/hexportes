@@ -1,5 +1,5 @@
 import pygame as pg
-import pyg, warnings
+import pyg, warnings, json
 
 
 def get_all_image_in_folder(folder_str: str):
@@ -80,6 +80,7 @@ green = load("hex_image/base_green")
 rocky = load("hex_image/base_rocky")
 water = load("hex_image/base_watery")
 
+map = json.load(open("assets/map.json"))
 
 fog = load("assets/hex_image/fog.png")
 
@@ -90,9 +91,21 @@ next_turn_button = load("assets/image/end_turn_button.png")
 
 go_button = load("assets/image/go_button.png")
 attack_button = load("assets/image/attack_button.png")
-transport_button=load("assets/image/transport_button")
+transport_button = load("assets/image/transport_button")
 fabricate_unit_background_button = load(
     "image/background_selected_unit_to_fabricate_button"
+)
+
+nine_sided_explanation = pyg.draw.Nine_sided_rect(
+    pg.Color(255, 253, 245),
+    load("image/explanation_rect/bottom"),
+    load("image/explanation_rect/top"),
+    load("image/explanation_rect/left"),
+    load("image/explanation_rect/right"),
+    load("image/explanation_rect/corner_left"),
+    load("image/explanation_rect/corner_right"),
+    load("image/explanation_rect/corner_bottom_left"),
+    load("image/explanation_rect/corner_bottom_right"),
 )
 
 hex_mouse_on = load("image/mouse_on_tile")

@@ -21,8 +21,10 @@ def get_variable(variable, default):
 
 
 class Bar:
-    height = 10
-    width = 100
+    height = 30
+    width = 200
+    border_size = 2
+    font = pg.font.Font(pg.font.get_default_font(), height - (border_size * 2))
 
     def __init__(self, color: pg.Color, max_value: int, value: int = None):
         self.color = color
@@ -36,20 +38,40 @@ class Bar:
     @value.setter
     def value(self, new_value: int):
         self._value = new_value
-        self.surface = self.get_surface()
 
-    def get_surface(self):
+    def get_surface(self, show_digits: bool = True):
         surface = draw.bar_percentage(
             get_percentage(self.value, self.max_value),
             self.width,
             self.height,
             self.color,
-            border_size=1,
+            border_size=self.border_size,
         )
+        if show_digits:
+            surface.blit(
+                draw.text(
+                    f"{self.value}/{self.max_value}",
+                    "white",
+                    Bar.font,
+                    pg.Rect(
+                        0,
+                        0,
+                        self.width - (self.border_size * 2),
+                        self.height - (self.border_size * 2),
+                    ),
+                ),
+                (self.border_size, self.border_size),
+            )
         return surface
 
-    def draw(self, pos):
-        camera(pg.transform.scale_by(self.surface, camera_movement.zoom_level), pos)
+    def draw(self, pos: tuple[int, int], show_digit: bool = True):
+        camera(
+            pg.transform.scale_by(
+                self.get_surface(show_digit),
+                camera_movement.zoom_level / 2,  # /2 cuz i doubled the height and width
+            ),
+            pos,
+        )
 
 
 class Component(abc.ABC):
@@ -110,7 +132,6 @@ class Component_movement(Component):
         fuel = info.get(Component_movement.FUEL, self.max_fuel)
         self.fuel_bar = Bar("brown", self.max_fuel, fuel)
         self.add_bar(self.fuel_bar)
-        self.reset_possible_hexs_to_go()
 
     def get_info(self):
         return {
@@ -123,30 +144,37 @@ class Component_movement(Component):
         self.move_to(hex)
 
     def move_to(self, hex: Hex):
-        if hex.unit_on_hex is not None or hex not in self.possible_hexs_to_go:
+        possible_hexs_to_go = self.get_possible_hexs_to_go()
+        if hex.unit_on_hex is not None or hex not in possible_hexs_to_go:
             return
 
-        fuel_after_movement = self.fuel - self.possible_hexs_to_go[hex]
+        fuel_after_movement = self.fuel - (
+            self.movement_point - possible_hexs_to_go[hex]
+        )
         if fuel_after_movement < 0:
             return
         self.fuel = fuel_after_movement
-        self.movement_point = self.possible_hexs_to_go[hex]
+        self.movement_point = possible_hexs_to_go[hex]
+
         self.unit.move_to(hex)
 
-    def reset_possible_hexs_to_go(self):
-        self.possible_hexs_to_go = (
-            self.unit.get_hex().search_hex(self.movement_point, True, False).copy()
-        )
+    def get_possible_hexs_to_go(self):
 
-    def after_movemement(self):
-        self.reset_possible_hexs_to_go()
-        return super().after_movemement()
+        possible_hexs_to_go: dict[Hex, int] = {}
+        non_filtered_possible_hexs_to_go = self.unit.get_hex().search_hex(
+            self.movement_point, True, False
+        )
+        for hex in non_filtered_possible_hexs_to_go:
+            cost = non_filtered_possible_hexs_to_go[hex]
+            if hex.unit_on_hex is not None:
+                continue
+            possible_hexs_to_go[hex] = cost
+        return possible_hexs_to_go
 
     def step(self):
         if self.unit.is_selected:
-            for possible_hex_to_go in self.possible_hexs_to_go:
+            for possible_hex_to_go in self.get_possible_hexs_to_go():
                 possible_hex_to_go.draw_surface_on_top(data.hex_can_go)
-
         return super().step()
 
     @property
@@ -188,7 +216,6 @@ class Component_attack(Component):
     RANGE = "range"
     attack_button = data.attack_button
     hex_can_attack = data.hex_can_attack
-    attackable_hexs: list[Hex]
 
     def __init__(self, unit, info: dict[str]):
         super().__init__(unit, info)
@@ -198,8 +225,9 @@ class Component_attack(Component):
         self.attack_range = unit.get_type_info()[self.RANGE]
 
         self.ammo_bar = Bar("red", self.max_ammo, self.ammo)
+        self.has_not_attacked = True
+
         self.add_bar(self.ammo_bar)
-        self.reset_attackable_hexs()
 
     def on_click(self, hex):
         if self.unit.is_selected:
@@ -208,8 +236,7 @@ class Component_attack(Component):
         return super().on_click(hex)
 
     def attack_tile(self, hex: Hex):
-        if hex not in self.attackable_hexs:
-            self.unit.unselect()
+        if hex not in self.get_attackable_hexs():
             return
 
         unit = hex.unit_on_hex
@@ -217,30 +244,30 @@ class Component_attack(Component):
             (unit is None)
             or (unit.team == self.unit.team)
             or (not unit.has_component(Component_pv))
+            or not self.has_not_attacked
         ):
             return
 
         self.ammo_bar.value -= 1
         pv_component: Component_pv = unit.get_component(Component_pv)
         pv_component.damage(self.damage)
-        self.unit.unselect()
-
-    def after_movemement(self):
-        self.reset_attackable_hexs()
-        return super().after_movemement()
+        self.has_not_attacked = False
 
     def step(self):
-        if self.unit.is_selected:
+        if self.unit.is_selected and self.has_not_attacked:
             self.draw_attackable_hexs()
         return super().step()
 
-    def reset_attackable_hexs(self):
-        self.attackable_hexs = self.unit.get_hex().search_hex(
-            self.attack_range, False, False
-        )
+    def get_attackable_hexs(self):
+        attackable_hexs: list[Hex] = []
+        for hex in self.unit.get_hex().search_hex(self.attack_range, False, False):
+            if hex.unit_on_hex is None or hex.unit_on_hex.team == self.unit.team:
+                continue
+            attackable_hexs.append(hex)
+        return attackable_hexs
 
     def draw_attackable_hexs(self):
-        for hex in self.attackable_hexs:
+        for hex in self.get_attackable_hexs():
             hex.draw_surface_on_top(Component_attack.hex_can_attack)
 
 
@@ -299,7 +326,7 @@ class Component_fabricator(Component):
     def __init__(self, unit, info):
         super().__init__(unit, info)
 
-        self.creatable_unit = self.unit.get_type_info()[self.CAN_CREATE_UNIT]
+        self.creatable_unit: list[str] = self.unit.get_type_info()[self.CAN_CREATE_UNIT]
         self.init_button()
 
         self.component_material: Component_material = self.unit.get_component(
@@ -309,6 +336,7 @@ class Component_fabricator(Component):
     def init_button(self):
         button_background = data.fabricate_unit_background_button
         button_background = pg.transform.scale(button_background, Unit.button_size.size)
+
         for unit_name in self.creatable_unit:
             button_surface = button_background.copy()
             unit_surface = get_unit_image_by_unit_and_color(
@@ -317,10 +345,12 @@ class Component_fabricator(Component):
             unit_surface = pg.transform.scale(unit_surface, Unit.button_size.size)
             button_surface.blit(unit_surface, (0, 0))
             self.test = button_surface
+            explanation = f"{unit_type[unit_name][DESCRIPTION]}, cost: {unit_type[unit_name][COST]}"
             self.unit.add_button(
                 button_surface,
                 Component_fabricator.set_unit_selected_to_fabricate,
                 (unit_name,),
+                explanation,
             )
 
     def get_fabrication_hexs(self):
@@ -363,20 +393,24 @@ class Component_fabricator(Component):
             raise ValueError(
                 f"can't call create unit for {self} with no unit selected to fabricate"
             )
-        if self.unit_selected_to_fabricate not in self.creatable_unit:
+
+        unit_name_to_create = self.unit_selected_to_fabricate
+
+        if unit_name_to_create not in self.creatable_unit:
             raise ValueError(
-                f"{self.unit_selected_to_fabricate} is not in the list of unit {self} can create ({self.creatable_unit})"
+                f"{unit_name_to_create} is not in the list of unit {self} can create ({self.creatable_unit})"
             )
+
         if hex_to_create.unit_on_hex is not None:
             return
-        cost = self.creatable_unit[self.unit_selected_to_fabricate]
+        cost = unit_type[unit_name_to_create][COST]
         if cost > self.component_material.material:
             return
         self.component_material.change_material(-cost)
         Unit.from_name(
             hex_to_create.w,
             hex_to_create.h,
-            self.unit_selected_to_fabricate,
+            unit_name_to_create,
             self.unit.team,
         )
 
@@ -401,9 +435,12 @@ class Component_transport(Component):
         ]
 
     def get_transportable_hexs(self):
-        return list(
-            self.unit.get_hex().search_hex(self.transport_range, False, False).keys()
-        )
+        transportable_hexs: list[Hex] = []
+        for hex in self.unit.get_hex().search_hex(self.transport_range, False, False):
+            if hex.unit_on_hex is None or hex.unit_on_hex.team != self.unit.team:
+                continue
+            transportable_hexs.append(hex)
+        return transportable_hexs
 
     def draw_transportable_hexs(self):
         for hex in self.get_transportable_hexs():
@@ -506,17 +543,52 @@ class Component_producer(Component):
         self.component_material.change_material(material_per_turn)
 
 
+class Component_terain_requirements(Component):
+    REQUIRED_TERRAIN = "requires terrain"
+
+    def __init__(self, unit, info):
+        super().__init__(unit, info)
+        self.required_terrain = self.unit.get_type_info()[
+            Component_terain_requirements.REQUIRED_TERRAIN
+        ]
+        self.check_terrain()
+
+    def after_movemement(self):
+        self.check_terrain()
+        return super().after_movemement()
+
+    def check_terrain(self):
+        unit_terrain = self.unit.get_hex().type
+        if unit_terrain != self.required_terrain:
+            raise ValueError(
+                f"Unit {self.unit} needs terrain {self.required_terrain} but is on {unit_terrain}"
+            )
+
+
+component_load_order = [
+    Component_pv,
+    Component_vision,
+    Component_material,
+    Component_fabricator,
+    Component_producer,
+    Component_transport,
+    Component_attack,
+    Component_movement,
+]
+
 IMAGE = "image"
 COMPONENTS = "components"
+DESCRIPTION = "description"
+COST = "cost"
 
-TEST_UNIT = "test unit"
-TEST_USINE = "test usine"
+TANK = "test unit"
+USINE = "test usine"
 TEST_TRUCK = "test truck"
-TEST_MINER = "test miner"
+MINER = "test miner"
 MOBILE_BUILDER = "mobile builder"
 
 unit_type = {
-    TEST_USINE: {
+    USINE: {
         IMAGE: "tile-village.png",
         COMPONENTS: [
             Component_pv,
@@ -525,17 +597,19 @@ unit_type = {
             Component_transport,
             Component_fabricator,
         ],
+        DESCRIPTION: "a basic usine to create most units",
+        COST: 20,
         Component_vision.VIEW_RANGE: 5,
         Component_pv.MAX_PV: 10,
-        Component_fabricator.CAN_CREATE_UNIT: {
-            TEST_UNIT: 10,
-            TEST_TRUCK: 10,
-            MOBILE_BUILDER: 20,
-        },
+        Component_fabricator.CAN_CREATE_UNIT: [
+            TANK,
+            TEST_TRUCK,
+            MOBILE_BUILDER,
+        ],
         Component_material.MAX_MATERIAL: 100,
         Component_transport.TRANSPORT_RANGE: 2,
     },
-    TEST_UNIT: {
+    TANK: {
         IMAGE: "tile-animal-cow.png",
         COMPONENTS: [
             Component_pv,
@@ -543,6 +617,8 @@ unit_type = {
             Component_vision,
             Component_attack,
         ],
+        DESCRIPTION: "a basic tank",
+        COST: 10,
         Component_movement.MOVEMENT_POINT: 4,
         Component_movement.MAX_FUEL: 10,
         Component_vision.VIEW_RANGE: 5,
@@ -564,10 +640,12 @@ unit_type = {
         Component_movement.MAX_FUEL: 10,
         Component_vision.VIEW_RANGE: 5,
         Component_pv.MAX_PV: 10,
-        Component_material.MAX_MATERIAL: 50,
+        Component_material.MAX_MATERIAL: 200,
         Component_transport.TRANSPORT_RANGE: 2,
+        DESCRIPTION: "a basic truck to transport material",
+        COST: 10,
     },
-    TEST_MINER: {
+    MINER: {
         IMAGE: "tile-farm-growing.png",
         COMPONENTS: [
             Component_pv,
@@ -579,6 +657,8 @@ unit_type = {
         Component_material.MAX_MATERIAL: 100,
         Component_transport.TRANSPORT_RANGE: 2,
         Component_producer.MATERIAL_PER_TURN: 10,
+        DESCRIPTION: "a basic miner that create materials",
+        COST: 10,
     },
     MOBILE_BUILDER: {
         IMAGE: "tile-animal-sheep.png",
@@ -596,10 +676,12 @@ unit_type = {
         Component_vision.VIEW_RANGE: 3,
         Component_movement.MOVEMENT_POINT: 5,
         Component_movement.MAX_FUEL: 20,
-        Component_fabricator.CAN_CREATE_UNIT: {
-            TEST_MINER: 20,
-            TEST_USINE: 40,
-        },
+        Component_fabricator.CAN_CREATE_UNIT: [
+            MINER,
+            USINE,
+        ],
+        DESCRIPTION: "a constructor to build buildings",
+        COST: 10,
     },
 }
 
@@ -617,6 +699,10 @@ class Unit:
     selected_bad_unit_sound = data.selected_bad_unit_sound
 
     button_size = pg.Rect(0, 0, 50, 50)
+
+    explanation_rect = pg.Rect(0, 0, 400, 800)
+    explanation_border_rect_text = 20
+    """the border between the nine sided and the text"""
 
     @classmethod
     def init(cls, team: int):
@@ -669,9 +755,12 @@ class Unit:
         self.components: dict[str, Component] = {}
         self.bars: list[Bar] = []
         self.all_buttons: list[pyg.Button] = []
+        self.all_explanations: list[pyg.Explain_bubble] = []
         Unit.all_units.append(self)
-        for component in unit_type[self.name][COMPONENTS]:
-            self.add_component(component, info)
+        components_to_load = unit_type[self.name][COMPONENTS]
+        for component in component_load_order:
+            if component in components_to_load:
+                self.add_component(component, info)
 
     TEAM = "team"
     NAME = "name"
@@ -682,6 +771,22 @@ class Unit:
         for component in self.components.values():
             info = info | component.get_info()
         return info
+
+    @classmethod
+    def get_all_info(cls):
+        all_info: dict[tuple[int, int]] = {}
+        for unit in Unit.all_units:
+            all_info[f"{unit.w};{unit.h}"] = unit.get_info()
+        return all_info
+
+    @classmethod
+    def load_all_info(cls, info: dict[str, dict[str,]]):
+        for unit_pos in info:
+            unit_info = info[unit_pos]
+            unit_w = int(unit_pos[: unit_pos.find(";")])
+            unit_h = int(unit_pos[unit_pos.find(";") + 1 :])
+            print(unit_w, unit_h)
+            Unit(unit_w, unit_h, unit_info)
 
     def get_type_info(self):
         return unit_type[self.name]
@@ -736,10 +841,26 @@ class Unit:
 
     def draw_info(self):
         x, y = self.get_xy()
+        show_value = camera_movement.zoom_level >= 1
         for i, bar in enumerate(self.bars):
-            bar.draw((x, y - (i * Bar.height * camera_movement.zoom_level)))
+            pos = (
+                x,
+                y
+                - (
+                    ((i * Bar.height) + (i * Bar.border_size))
+                    * camera_movement.zoom_level
+                    / 2  # /2 cuz i doubled the height and width
+                ),
+            )
+            bar.draw(pos, show_value)
 
-    def add_button(self, surface: pg.Surface, function: "function", args: tuple = ()):
+    def add_button(
+        self,
+        surface: pg.Surface,
+        function: "function",
+        args: tuple = (),
+        explanation: str | None = None,
+    ):
         rect = Unit.button_size.copy()
         rect.x = (
             len(self.all_buttons) + 1
@@ -747,6 +868,34 @@ class Unit:
         button = pyg.Button(surface, function, rect, args)
         button.is_visible = False
         self.all_buttons.append(button)
+
+        if explanation is not None:
+
+            text_surface = pyg.draw.text(
+                explanation,
+                pg.Color(0, 0, 0),
+                rect_to_write_on=pg.Rect(
+                    (
+                        Unit.explanation_border_rect_text,
+                        Unit.explanation_border_rect_text,
+                    ),
+                    Unit.explanation_rect.size,
+                ),
+            )
+            explain_surface_rect = text_surface.get_bounding_rect()
+            explain_surface_rect.inflate_ip(
+                Unit.explanation_border_rect_text * 2,
+                Unit.explanation_border_rect_text * 2,
+            )
+            explain_surface = data.nine_sided_explanation.get_surface(
+                explain_surface_rect
+            )
+            explain_surface.blit(
+                text_surface,
+                (Unit.explanation_border_rect_text, Unit.explanation_border_rect_text),
+            )
+
+            self.all_explanations.append(pyg.Explain_bubble(rect, explain_surface))
 
     def get_hex(self):
         """Get the hex where the unit is"""
@@ -771,7 +920,8 @@ class Unit:
 
         for button in self.all_buttons:
             button.is_visible = True
-
+        for explanation in self.all_explanations:
+            explanation.is_visible = True
         self.is_selected = True
         Unit.unit_selected = self
         for component in self.components.values():
@@ -790,6 +940,8 @@ class Unit:
 
         for button in self.all_buttons:
             button.is_visible = False
+        for explanation in self.all_explanations:
+            explanation.is_visible = False
         data.current_state = data.click_state.SELECT_UNIT
 
     def on_click(self, clicked_hex: Hex):

@@ -1,6 +1,6 @@
 import sys
 
-sys.path.append("C:/Users/bauma/Documents/GitHub/hexportes")
+sys.path.append("/home/louane/git/hexportes")
 
 import os, data
 import pygame as pg

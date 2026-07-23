@@ -642,6 +642,110 @@ class draw:
         )
         return text_surface
 
+    class Nine_sided_rect:
+        def __init__(
+            self,
+            center_color: pg.Color,
+            bottom: pg.Surface,
+            top: pg.Surface,
+            left: pg.Surface,
+            right: pg.Surface,
+            corner_top_left: pg.Surface,
+            corner_top_right: pg.Surface,
+            corner_bottom_left: pg.Surface,
+            corner_bottom_right: pg.Surface,
+        ):
+            self.center_color: pg.Color = center_color
+            self.bottom: pg.Surface = bottom
+            self.top: pg.Surface = top
+            self.left: pg.Surface = left
+            self.right: pg.Surface = right
+            self.corner_top_left: pg.Surface = corner_top_left
+            self.corner_top_right: pg.Surface = corner_top_right
+            self.corner_bottom_left: pg.Surface = corner_bottom_left
+            self.corner_bottom_right: pg.Surface = corner_bottom_right
+
+            self.surface_size = self.bottom.get_size()
+            for surface in [
+                self.top,
+                self.left,
+                self.right,
+                self.corner_top_left,
+                self.corner_top_right,
+                self.corner_bottom_left,
+                self.corner_bottom_right,
+            ]:
+                if surface.get_size() != self.surface_size:
+                    raise ValueError(
+                        f"surface {surface} isn't the same size as every other ({self.surface_size})"
+                    )
+
+        def get_surface(self, rect: pg.Rect):
+            surface = pg.Surface(rect.size, pg.SRCALPHA)
+            if rect.size < (self.surface_size[0] * 3, self.surface_size[1] * 3):
+                raise ValueError(f"The rect passed:{rect} isn't big enough")
+
+            center_rect = pg.Rect(
+                self.surface_size[0],
+                self.surface_size[1],
+                rect.width - self.surface_size[0] * 2,
+                rect.height - self.surface_size[1] * 2,
+            )
+            surface.fill(self.center_color, center_rect)
+
+            surface.blit(self.corner_top_left, (0, 0))
+            surface.blit(
+                self.corner_top_right,
+                (rect.width - self.corner_top_right.get_width(), 0),
+            )
+            surface.blit(
+                self.corner_bottom_right,
+                (
+                    rect.width - self.corner_bottom_right.get_width(),
+                    rect.height - self.corner_bottom_right.get_height(),
+                ),
+            )
+            surface.blit(
+                self.corner_bottom_left,
+                (0, rect.height - self.corner_bottom_left.get_height()),
+            )
+
+            surface.blit(
+                pg.transform.scale(
+                    self.top,
+                    (rect.width - (self.surface_size[0] * 2), self.top.get_height()),
+                ),
+                (self.surface_size[0], 0),
+            )
+            surface.blit(
+                pg.transform.scale(
+                    self.bottom,
+                    (rect.width - (self.surface_size[0] * 2), self.bottom.get_height()),
+                ),
+                (self.surface_size[0], rect.height - self.bottom.get_height()),
+            )
+            surface.blit(
+                pg.transform.scale(
+                    self.left,
+                    (
+                        self.left.get_width(),
+                        rect.height - (self.surface_size[1] * 2),
+                    ),
+                ),
+                (0, self.surface_size[1]),
+            )
+            surface.blit(
+                pg.transform.scale(
+                    self.right,
+                    (
+                        self.left.get_width(),
+                        rect.height - (self.surface_size[1] * 2),
+                    ),
+                ),
+                (rect.width - self.left.get_width(), self.surface_size[1]),
+            )
+            return surface
+
 
 class Collision_object:
     all_collision_object: list["Collision_object"] = []
@@ -933,7 +1037,7 @@ class Button:
 
 
 class Explain_bubble:
-    alls: list["Explain_bubble"] = []
+    all_explain_bubble: list["Explain_bubble"] = []
     old_mouse_pos = (0, 0)
     same_pos_tick = 0
     """the number of tick the mouse stayed on the same position"""
@@ -950,21 +1054,11 @@ class Explain_bubble:
         """
         self.rect = object_rect
         self.surface = surface
-        Explain_bubble.alls.append(self)
+        Explain_bubble.all_explain_bubble.append(self)
         self.is_visible = False
 
     @classmethod
     def step_all(cls):
-        if Explain_bubble.same_pos_tick >= Explain_bubble.hovering_time:
-            hovering_explanation = Explain_bubble.get_hovering_explanation()
-            if hovering_explanation != None and hovering_explanation.is_visible:
-                camera(
-                    hovering_explanation.surface,
-                    keyboard.true_mouse_position,
-                    -50,
-                    True,
-                    False,
-                )
 
         if Explain_bubble.old_mouse_pos == keyboard.true_mouse_position:
             Explain_bubble.same_pos_tick += 1
@@ -972,19 +1066,34 @@ class Explain_bubble:
             Explain_bubble.same_pos_tick = 0
         Explain_bubble.old_mouse_pos = keyboard.true_mouse_position
 
+        if Explain_bubble.same_pos_tick >= Explain_bubble.hovering_time:
+            hovering_explanations = Explain_bubble.get_hovering_explanation()
+            if hovering_explanations is None:
+                return
+            for hovering_explanation in hovering_explanations:
+                if hovering_explanation.is_visible:
+                    camera(
+                        hovering_explanation.surface,
+                        keyboard.true_mouse_position,
+                        -50,
+                        True,
+                        False,
+                    )
+
     @staticmethod
-    def get_hovering_explanation() -> Union["Explain_bubble", None]:
-        # I use union 'cause one of them is a string and python don't like that
-        index = pg.Rect.collidelist(
+    def get_hovering_explanation():
+        indexs = pg.Rect.collidelistall(
             pg.Rect(
                 keyboard.true_mouse_position, (1, 1)
             ),  # the mini rect is the mouse pos
-            Explain_bubble.alls,
+            Explain_bubble.all_explain_bubble,
         )
-        if index != -1:
-            return Explain_bubble.alls[index]
-        else:
-            return None
+        if indexs == []:
+            return
+        hovering_explanation: list[Explain_bubble] = []
+        for i in indexs:
+            hovering_explanation.append(Explain_bubble.all_explain_bubble[i])
+        return hovering_explanation
 
     def toggle_visibility(self, state: bool = None):
         """_summary_
@@ -998,7 +1107,10 @@ class Explain_bubble:
             self.is_visible = state
 
     def __str__(self):
-        return "Explanation_object:" + str(self.rect)
+        return f"Explanation_object: {self.rect}, is_visible: {self.is_visible}"
+
+    def __repr__(self):
+        return self.__str__()
 
 
 def shutdown():

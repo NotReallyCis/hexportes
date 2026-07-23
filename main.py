@@ -14,6 +14,8 @@ pyg.init_all_module(fps, False)
 
 import client
 
+import data
+
 
 def init():
     global team
@@ -22,14 +24,12 @@ def init():
     print("team is:", team)
 
     unit.Unit.init(team)
-    Hex.create_hexs_map()
+    Hex.create_hexs_map(data.map)
 
 
 from hex import Hex
 import unit
 import camera_movement
-
-import data
 
 
 def end_of_turn(is_sending_data_to_server: bool = True):
@@ -60,8 +60,8 @@ pyg.keyboard.set_new_key_map("f5", True, end_of_turn)
 pyg.keyboard.set_new_key_map("escape", True, unselect_unit)
 
 start_unit = [
-    {(0, 0): unit.TEST_TRUCK, (1, 0): unit.TEST_USINE, (2, 0): unit.TEST_MINER},
-    {(1, 5): unit.TEST_USINE, (2, 5): unit.TEST_UNIT},
+    {(9, 15): unit.USINE, (9, 16): unit.MINER},
+    {(21, 14): unit.USINE, (21, 15): unit.MINER},
 ]
 
 
@@ -89,6 +89,5 @@ def step():
 init()
 end_of_turn(False)  # it gets the map of the server at the start
 create_start_units()
-
 while True:
     step()
