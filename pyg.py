@@ -44,6 +44,18 @@ def convert_second(s: float, precision: int = 3):
         return str(round(s * (10**6), precision)) + "μs"
 
 
+def wh_to_string(w: int, h: int):
+    """parse a wh argument for a key in a json file"""
+    return f"{w};{h}"
+
+
+def string_to_wh(string: str):
+    """load string formatted with the "wh_to_string"""
+    w = int(string[: string.find(";")])
+    h = int(string[string.find(";") + 1 :])
+    return (w, h)
+
+
 def get_rect_info(rect: pg.Rect):
     """return the info to transform a rect into a tuple, and recover it in load_rect"""
     return rect.left, rect.top, rect.width, rect.height
@@ -932,7 +944,7 @@ class Button:
         right_click_function_args: tuple = None,
     ):
         if isinstance(pos_or_rect, pg.Rect):
-            self.rect = pos_or_rect
+            self.rect = pos_or_rect.copy()
             self.surface = pg.transform.scale(surface, self.rect.size)
         else:
             self.rect = surface.get_rect(topleft=pos_or_rect)

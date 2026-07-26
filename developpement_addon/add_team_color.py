@@ -31,31 +31,87 @@ def get_surface_from_file(file: bytes):
 
 
 def save_surface(surface: pg.Surface, color: tuple[int, int, int], name: str):
-
     pg.image.save(
         surface,
         output_directory_str + "/" + data.color_of_teams[color] + "_" + name,
     )
 
 
-def fill_only_visible_part(surface: pg.Surface, color: tuple):
-    width, height = surface.get_size()
+def add_border(surface: pg.Surface, color: tuple, size: int = 1):
+    surface = surface.copy()
+    surface_border = pg.Surface(surface.get_size(), pg.SRCALPHA)
+    surface_border.fill((0, 0, 0, 0))
 
-    for x in range(width):
-        for y in range(height):
-            alpha: int = surface.get_at((x, y)).a
-            surface.set_at((x, y), pg.Color(color[0], color[1], color[2], alpha))
+    surface_mask = pg.mask.from_surface(surface)
+    surface_filled = surface_mask.to_surface(setcolor=color)
+    surface_filled.set_colorkey((0, 0, 0))
+    for position_offset in [
+        (1 * size, 0),
+        (-1 * size, 0),
+        (0, 1 * size),
+        (0, -1 * size),
+    ]:
+        surface_border.blit(surface_filled, position_offset)
+    surface_border.blit(surface, (0, 0))
+    return surface_border
 
 
-border_size = 2
+def change_color(
+    surface: pg.Surface,
+    color_start: tuple[int, int, int],
+    color_end: tuple[int, int, int],
+    threshold: int = 30,
+):
+    surface = surface.copy()
+    color_start: pg.Color = pg.Color(color_start)
+    color_end: pg.Color = pg.Color(color_end)
+    color_offset_start_to_end = (
+        color_end.r - color_start.r,
+        color_end.g - color_start.g,
+        color_end.b - color_start.b,
+    )
+    for x in range(surface.get_width()):
+        for y in range(surface.get_height()):
+            color = surface.get_at((x, y))
+            color_change_to_color_start = (
+                color.r - color_start[0],
+                color.g - color_start[1],
+                color.b - color_start[2],
+            )
+            change_to_color_start = (
+                abs(color_change_to_color_start[0])
+                + abs(color_change_to_color_start[1])
+                + abs(color_change_to_color_start[2])
+            )
+            if change_to_color_start > threshold:
+                continue
+
+            color_changed = (
+                color.r + color_offset_start_to_end[0],
+                color.g + color_offset_start_to_end[1],
+                color.b + color_offset_start_to_end[2],
+            )
+            surface.set_at((x, y), normalize_color_tuple(color_changed))
+    return surface
+
+
+def normalize_color_tuple(color: tuple[int, int, int]):
+    color = (
+        pg.math.clamp(color[0], 0, 255),
+        pg.math.clamp(color[1], 0, 255),
+        pg.math.clamp(color[2], 0, 255),
+    )
+    return color
+
+
+start_color = (64, 106, 150)
+border_size = 1
 for file in os.listdir(directory):
     filename = os.fsdecode(file)
+
     surface = get_surface_from_file(file)
-    output_surface = pg.transform.scale(
-        surface,
-        (surface.get_width() + border_size * 2, surface.get_height() + border_size * 2),
-    )
+
     for color in data.color_of_teams:
-        fill_only_visible_part(output_surface, color)
-        output_surface.blit(surface, (border_size, border_size))
-        save_surface(output_surface, color, filename)
+        colored_surface = change_color(surface, start_color, color, 160)
+        colored_surface = add_border(colored_surface, color, border_size)
+        save_surface(colored_surface, color, filename)

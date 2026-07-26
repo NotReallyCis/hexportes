@@ -143,6 +143,7 @@ def receive_map_info_from_server():
     from unit import Unit
 
     uncoded_message = json.loads(Client.receive_message())
+    print(uncoded_message)
     Unit.load_all_info(uncoded_message)
 
     global has_receive_message_from_server

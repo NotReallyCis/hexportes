@@ -46,14 +46,14 @@ def load(
 
 
 color_of_teams = {
-    (255, 0, 0): "red",
-    (0, 255, 0): "green",
-    (0, 0, 255): "blue",
+    (64, 106, 150): "blue",
+    (213, 88, 88): "red",
+    (77, 170, 90): "green",
 }
 
 
 def get_all_colors():
-    output = []
+    output :list[str]= []
     for color in color_of_teams:
         output.append(color_of_teams[color])
     return output
@@ -75,13 +75,23 @@ directory_unit_team_color = "assets/unit_with_team_color/"
 
 ### image ###
 
+BAREN = "baren terrain"
+OIL = "oil field terrain"
+GREEN = "green terrain"
+ROCKY = "rocky terrain"
+WATER = "water terrain"
+
+
 baren = load("hex_image/base_baren")
+oil = load("hex_image/oil_baren")
 green = load("hex_image/base_green")
 rocky = load("hex_image/base_rocky")
 water = load("hex_image/base_watery")
 
-map = json.load(open("assets/map.json"))
-
+try:
+    map = json.load(open("assets/map.json"))
+except json.decoder.JSONDecodeError:
+    map = None
 fog = load("assets/hex_image/fog.png")
 
 hex_image = load("essentials-4xgames-tileset/base_rocky.png")
@@ -121,10 +131,6 @@ if pg.display.get_active():
         pg.display.get_surface().get_size(),
     )
 
-
-unit_test_1 = load("assets/unit/tile-farm-sown")
-unit_test_2 = load("assets/unit/tile-forest")
-
 ### click stat ###
 current_state = None
 
@@ -133,3 +139,4 @@ class click_state:
     """this class is used to define the different stat of action done when a click occurs"""
 
     SELECT_UNIT = "select_unit"
+    MAP_BUILDING = "MAP_BUILDING"

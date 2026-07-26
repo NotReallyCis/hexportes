@@ -158,6 +158,12 @@ class Component_movement(Component):
 
         self.unit.move_to(hex)
 
+        if self.unit.has_component(Component_transport):
+            component_transport: Component_transport = self.unit.get_component(
+                Component_transport
+            )
+            component_transport.transport_material(self.unit)
+
     def get_possible_hexs_to_go(self):
 
         possible_hexs_to_go: dict[Hex, int] = {}
@@ -339,9 +345,7 @@ class Component_fabricator(Component):
 
         for unit_name in self.creatable_unit:
             button_surface = button_background.copy()
-            unit_surface = get_unit_image_by_unit_and_color(
-                (unit_name), self.unit.color
-            )
+            unit_surface = get_unit_surface((unit_name), self.unit.color)
             unit_surface = pg.transform.scale(unit_surface, Unit.button_size.size)
             button_surface.blit(unit_surface, (0, 0))
             self.test = button_surface
@@ -354,10 +358,20 @@ class Component_fabricator(Component):
             )
 
     def get_fabrication_hexs(self):
+        if self.unit_selected_to_fabricate is not None:
+            terrain_required = unit_type[self.unit_selected_to_fabricate].get(
+                Component_terain_requirements.REQUIRED_TERRAIN
+            )
+        else:
+            terrain_required = None
         fabrication_hexs: list[Hex] = []
         for hex_around in self.unit.get_hex().get_hexs_around_hex():
-            if hex_around.unit_on_hex is None:
-                fabrication_hexs.append(hex_around)
+            if hex_around.unit_on_hex is not None:
+                continue
+            if terrain_required is not None and hex_around.type != terrain_required:
+                continue
+            fabrication_hexs.append(hex_around)
+
         return fabrication_hexs
 
     @staticmethod
@@ -566,6 +580,7 @@ class Component_terain_requirements(Component):
 
 
 component_load_order = [
+    Component_terain_requirements,
     Component_pv,
     Component_vision,
     Component_material,
@@ -576,20 +591,20 @@ component_load_order = [
     Component_movement,
 ]
 
-IMAGE = "image"
+SURFACE = "surface"
 COMPONENTS = "components"
 DESCRIPTION = "description"
 COST = "cost"
 
 TANK = "test unit"
 USINE = "test usine"
-TEST_TRUCK = "test truck"
+TRUCK = "test truck"
 MINER = "test miner"
 MOBILE_BUILDER = "mobile builder"
 
 unit_type = {
     USINE: {
-        IMAGE: "tile-village.png",
+        SURFACE: "village.png",
         COMPONENTS: [
             Component_pv,
             Component_vision,
@@ -598,19 +613,19 @@ unit_type = {
             Component_fabricator,
         ],
         DESCRIPTION: "a basic usine to create most units",
-        COST: 20,
+        COST: 40,
         Component_vision.VIEW_RANGE: 5,
         Component_pv.MAX_PV: 10,
         Component_fabricator.CAN_CREATE_UNIT: [
             TANK,
-            TEST_TRUCK,
+            TRUCK,
             MOBILE_BUILDER,
         ],
         Component_material.MAX_MATERIAL: 100,
         Component_transport.TRANSPORT_RANGE: 2,
     },
     TANK: {
-        IMAGE: "tile-animal-cow.png",
+        SURFACE: "tank.png",
         COMPONENTS: [
             Component_pv,
             Component_movement,
@@ -618,17 +633,17 @@ unit_type = {
             Component_attack,
         ],
         DESCRIPTION: "a basic tank",
-        COST: 10,
-        Component_movement.MOVEMENT_POINT: 4,
+        COST: 15,
+        Component_movement.MOVEMENT_POINT: 3,
         Component_movement.MAX_FUEL: 10,
-        Component_vision.VIEW_RANGE: 5,
-        Component_pv.MAX_PV: 10,
+        Component_vision.VIEW_RANGE: 4,
+        Component_pv.MAX_PV: 20,
         Component_attack.DAMAGE: 5,
         Component_attack.MAX_AMMO: 20,
         Component_attack.RANGE: 5,
     },
-    TEST_TRUCK: {
-        IMAGE: "tile-animal-pig.png",
+    TRUCK: {
+        SURFACE: "truck.png",
         COMPONENTS: [
             Component_pv,
             Component_movement,
@@ -636,32 +651,34 @@ unit_type = {
             Component_material,
             Component_transport,
         ],
-        Component_movement.MOVEMENT_POINT: 4,
-        Component_movement.MAX_FUEL: 10,
-        Component_vision.VIEW_RANGE: 5,
-        Component_pv.MAX_PV: 10,
+        Component_movement.MOVEMENT_POINT: 6,
+        Component_movement.MAX_FUEL: 30,
+        Component_vision.VIEW_RANGE: 6,
+        Component_pv.MAX_PV: 5,
         Component_material.MAX_MATERIAL: 200,
         Component_transport.TRANSPORT_RANGE: 2,
         DESCRIPTION: "a basic truck to transport material",
-        COST: 10,
+        COST: 30,
     },
     MINER: {
-        IMAGE: "tile-farm-growing.png",
+        SURFACE: "oil_rig.png",
         COMPONENTS: [
             Component_pv,
             Component_material,
             Component_transport,
             Component_producer,
+            Component_terain_requirements,
         ],
         Component_pv.MAX_PV: 30,
-        Component_material.MAX_MATERIAL: 100,
+        Component_material.MAX_MATERIAL: 30,
         Component_transport.TRANSPORT_RANGE: 2,
         Component_producer.MATERIAL_PER_TURN: 10,
-        DESCRIPTION: "a basic miner that create materials",
-        COST: 10,
+        DESCRIPTION: "a farm that create materials each turn, can only be placed on grass",
+        COST: 15,
+        Component_terain_requirements.REQUIRED_TERRAIN: data.OIL,
     },
     MOBILE_BUILDER: {
-        IMAGE: "tile-animal-sheep.png",
+        SURFACE: "truck_crane.png",
         COMPONENTS: [
             Component_pv,
             Component_vision,
@@ -681,13 +698,13 @@ unit_type = {
             USINE,
         ],
         DESCRIPTION: "a constructor to build buildings",
-        COST: 10,
+        COST: 20,
     },
 }
 
 
-def get_unit_image_by_unit_and_color(unit_name: str, color: str):
-    image_name = unit_type[unit_name][IMAGE]
+def get_unit_surface(unit_name: str, color: str):
+    image_name = unit_type[unit_name][SURFACE]
     return pg.image.load(data.directory_unit_team_color + color + "_" + image_name)
 
 
@@ -776,23 +793,21 @@ class Unit:
     def get_all_info(cls):
         all_info: dict[tuple[int, int]] = {}
         for unit in Unit.all_units:
-            all_info[f"{unit.w};{unit.h}"] = unit.get_info()
+            all_info[pyg.wh_to_string(unit.w, unit.h)] = unit.get_info()
         return all_info
 
     @classmethod
     def load_all_info(cls, info: dict[str, dict[str,]]):
         for unit_pos in info:
-            unit_info = info[unit_pos]
-            unit_w = int(unit_pos[: unit_pos.find(";")])
-            unit_h = int(unit_pos[unit_pos.find(";") + 1 :])
-            print(unit_w, unit_h)
-            Unit(unit_w, unit_h, unit_info)
+            unit = info[unit_pos]
+            unit_w, unit_h = pyg.string_to_wh(unit_pos)
+            Unit(unit_w, unit_h, unit)
 
     def get_type_info(self):
         return unit_type[self.name]
 
     def set_image(self):
-        self.surface = get_unit_image_by_unit_and_color(self.name, self.color)
+        self.surface = get_unit_surface(self.name, self.color)
 
     def set_color(self):
         if self.team in Unit.map_teams_to_color.keys():

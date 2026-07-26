@@ -34,18 +34,14 @@ class Hex:
 
     hex_cursor_is_on = None
 
-    BAREN = "baren terrain"
-    GREEN = "green terrain"
-    ROCKY = "rocky terrain"
-    WATER = "water terrain"
-
     SURFACE = "surface"
     WEIGHT = "weight"
     terrain_types: dict[str] = {
-        BAREN: {SURFACE: data.baren, WEIGHT: 1},
-        GREEN: {SURFACE: data.green, WEIGHT: 1},
-        ROCKY: {SURFACE: data.rocky, WEIGHT: 3},
-        WATER: {SURFACE: data.water, WEIGHT: 0},
+        data.BAREN: {SURFACE: data.baren, WEIGHT: 1},
+        data.OIL: {SURFACE: data.oil, WEIGHT: 1},
+        data.GREEN: {SURFACE: data.green, WEIGHT: 1},
+        data.ROCKY: {SURFACE: data.rocky, WEIGHT: 3},
+        data.WATER: {SURFACE: data.water, WEIGHT: 0},
     }
     """If the weight is 0 then the tile is impassable"""
 
@@ -58,10 +54,7 @@ class Hex:
 
         self.true_pos = self.pos
         """never changes"""
-        self.type = type
-        self.surface = Hex.terrain_types[type][Hex.SURFACE]
-        self.surface = pg.transform.scale(self.surface, (Hex.width, Hex.height))
-        Hex.all_hexs_surface.blit(self.surface, self.get_xy_by_wh(self.w, self.h))
+        self.change_type(type, False)
 
         self.weight = Hex.terrain_types[type][Hex.WEIGHT]
         """the amount of movement point needed"""
@@ -85,6 +78,16 @@ class Hex:
         Hex.reset_maps_surface()
         Hex.reload_fog_surface()
 
+    def change_type(self, type: str, is_reset_maps_surface: bool = True):
+        self.type = type
+        self.surface = Hex.terrain_types[type][Hex.SURFACE]
+        self.surface = pg.transform.scale(self.surface, (Hex.width, Hex.height))
+        Hex.all_hexs_surface.blit(
+            self.surface, self.get_xy_by_wh(self.w, self.h, False)
+        )
+        if is_reset_maps_surface:
+            Hex.reset_maps_surface()
+
     @classmethod
     def on_end_of_turn(cls):
         for line in Hex.all_hexs:
@@ -105,7 +108,7 @@ class Hex:
 
     @classmethod
     def draw_hex_position_indicator(cls, hex: Hex):
-        text_surface = pyg.draw.text(str((hex.w, hex.h)),"red")
+        text_surface = pyg.draw.text(str((hex.w, hex.h)), "red")
         pyg.camera(
             text_surface,
             (pg.display.get_surface().get_width() - text_surface.get_width(), 0),
@@ -186,10 +189,14 @@ class Hex:
     def click_hex_selected():
         if Hex.hex_cursor_is_on is None:
             return
-        if not pyg.Button.is_position_in_zone_covered(*pyg.keyboard.mouse_position.xy):
-            Hex.hex_cursor_is_on.clicked()
+        if pyg.Button.is_position_in_zone_covered(*pyg.keyboard.mouse_position.xy):
+            return
+        Hex.hex_cursor_is_on.clicked()
 
     def clicked(self):
+        if data.current_state == data.click_state.MAP_BUILDING:
+            return
+
         if (
             data.current_state == data.click_state.SELECT_UNIT
             and Unit.unit_selected is None
@@ -201,14 +208,16 @@ class Hex:
             Unit.unit_selected.on_click(self)
 
     @classmethod
-    def get_xy_by_wh(cls, w: int, h: int):
-        x = w * Hex.horizontal_spacing * camera_movement.zoom_level
-        if pyg.is_even(w):
-            y = h * Hex.vertical_spacing * camera_movement.zoom_level
+    def get_xy_by_wh(cls, w: int, h: int, include_zoom: bool = True):
+        if include_zoom:
+            zoom = camera_movement.zoom_level
         else:
-            y = (
-                (h * Hex.vertical_spacing) + (Hex.vertical_spacing / 2)
-            ) * camera_movement.zoom_level
+            zoom = 1
+        x = w * Hex.horizontal_spacing * zoom
+        if pyg.is_even(w):
+            y = h * Hex.vertical_spacing * zoom
+        else:
+            y = ((h * Hex.vertical_spacing) + (Hex.vertical_spacing / 2)) * zoom
         return round(x), round(y)
 
     @property
@@ -254,6 +263,7 @@ class Hex:
 
         if not Hex.is_wh_inside_border(w, h):
             return None
+        
         hex = Hex.get_hex_by_wh(w, h)
         if hex.is_position_in_hex(pos):
             return hex

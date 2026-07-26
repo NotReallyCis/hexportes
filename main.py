@@ -58,17 +58,16 @@ pyg.Button(
 
 pyg.keyboard.set_new_key_map("f5", True, end_of_turn)
 pyg.keyboard.set_new_key_map("escape", True, unselect_unit)
-
-start_unit = [
-    {(9, 15): unit.USINE, (9, 16): unit.MINER},
-    {(21, 14): unit.USINE, (21, 15): unit.MINER},
-]
+start_unit_file = open("assets/unit_start.json", "r")
+start_unit: list[dict[str, str]] = json.load(start_unit_file)
 
 
 def create_start_units():
     for unit_position in start_unit[get_number_of_player() - 1]:
+        print(unit_position)
         unit_name = start_unit[get_number_of_player() - 1][unit_position]
-        unit.Unit.from_name(*unit_position, unit_name, team)
+        w, h = pyg.string_to_wh(unit_position)
+        unit.Unit.from_name(w, h, unit_name, team)
 
 
 def display_fps():
