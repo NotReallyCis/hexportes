@@ -92,6 +92,10 @@ class Component(abc.ABC):
         """called each tick"""
         pass
 
+    def after_load(self):
+        """function called after initisializatin of the units"""
+        pass
+
     def unit_selected(self):
         pass
 
@@ -312,9 +316,9 @@ class Component_material(Component):
 
     def change_material(self, amount: int):
         self.material += amount
-        if self.material < 0:
+        if self.material < 0 or self.material > self.max_material:
             raise ValueError(
-                f"can't subtract more than the amount of material {self.material}-{amount}<0"
+                f"Material {self.material} of unit {self.unit} is wrong (negative or above the limit({self.max_material}))."
             )
         self.material_bar.value = self.material
 
@@ -364,6 +368,7 @@ class Component_fabricator(Component):
             )
         else:
             terrain_required = None
+
         fabrication_hexs: list[Hex] = []
         for hex_around in self.unit.get_hex().get_hexs_around_hex():
             if hex_around.unit_on_hex is not None:
@@ -400,9 +405,9 @@ class Component_fabricator(Component):
             clicked_hex in self.get_fabrication_hexs()
             and self.unit_selected_to_fabricate is not None
         ):
-            self.create_unit(clicked_hex)
+            self.build_unit(clicked_hex)
 
-    def create_unit(self, hex_to_create: Hex):
+    def build_unit(self, hex_to_create: Hex):
         if self.unit_selected_to_fabricate is None:
             raise ValueError(
                 f"can't call create unit for {self} with no unit selected to fabricate"
@@ -417,24 +422,25 @@ class Component_fabricator(Component):
 
         if hex_to_create.unit_on_hex is not None:
             return
-        cost = unit_type[unit_name_to_create][COST]
-        if cost > self.component_material.material:
-            return
-        self.component_material.change_material(-cost)
-        Unit.from_name(
+        Unit(
             hex_to_create.w,
             hex_to_create.h,
-            unit_name_to_create,
-            self.unit.team,
+            {
+                Unit.TEAM: self.unit.team,
+                Unit.NAME: CONSTRUCTION_SITE,
+                Component_construction_site.UNIT_TO_BECOME: unit_name_to_create,
+            },
         )
 
 
 class Component_transport(Component):
     TRANSPORT_RANGE = "transport range"
+    AUTO_TRANSPORT = "hex to auto transport"
+    AUTO_TRANSPORT_STATE = "auto transport state"
 
-    material_to_fuel_conversion = 2
+    material_to_fuel_conversion = 1
     """The number of fuel gained per material given"""
-    material_to_ammo_conversion = 2
+    material_to_ammo_conversion = 1
     """The number of ammo gained per material given"""
 
     dependency = [Component_material]
@@ -448,6 +454,15 @@ class Component_transport(Component):
             Component_transport.TRANSPORT_RANGE
         ]
 
+        self.auto_transport_to: tuple[int, int] | None = info.get(
+            Component_transport.AUTO_TRANSPORT, None
+        )
+
+        self.unit.add_button(
+            data.transport_button,
+            self.set_state_to_auto_transport,
+        )
+
     def get_transportable_hexs(self):
         transportable_hexs: list[Hex] = []
         for hex in self.unit.get_hex().search_hex(self.transport_range, False, False):
@@ -460,9 +475,37 @@ class Component_transport(Component):
         for hex in self.get_transportable_hexs():
             hex.draw_surface_on_top(data.hex_can_transport)
 
+    def draw_auto_transport(self):
+        if self.auto_transport_to is None:
+            return
+
+        from hex import Hex
+
+        center_hex = self.unit.get_hex().get_center()
+        center_hex_auto_transport = Hex.get_hex_by_wh(
+            *self.auto_transport_to
+        ).get_center()
+        auto_transport_vector = pg.Vector2(
+            center_hex_auto_transport[0] - center_hex[0],
+            center_hex_auto_transport[1] - center_hex[1],
+        )
+
+        angle = 360 - auto_transport_vector.as_polar()[1]
+
+        arrow_surface = data.auto_transport_arrow.copy()
+        arrow_surface = pg.transform.rotate(arrow_surface, angle)
+        arrow_surface = pg.transform.scale_by(arrow_surface, camera_movement.zoom_level)
+
+        mid_point = auto_transport_vector / 2
+        mid_point += center_hex
+        print(mid_point, arrow_surface.get_size())
+        pyg.camera(arrow_surface, mid_point, -1, False, True)
+
     def step(self):
         if self.unit.is_selected:
             self.draw_transportable_hexs()
+        if self.unit.get_hex().is_visible and self.unit.team == Unit.team_of_main:
+            self.draw_auto_transport()
 
     def on_click(self, clicked_hex):
         unit = clicked_hex.unit_on_hex
@@ -477,7 +520,10 @@ class Component_transport(Component):
             )
         ):
             return
-        self.transport_material(unit)
+        if data.current_state == Component_transport.AUTO_TRANSPORT_STATE:
+            self.set_auto_transport()
+        else:
+            self.transport_material(unit)
 
     def transport_material(self, to_unit: Unit, amount=-1):
         """transport material, fuel and ammo to an unit.
@@ -488,9 +534,7 @@ class Component_transport(Component):
             amount (int, optional): keeping to -1 sets the maximum amount possible. Defaults to -1.
         """
         if to_unit.team != self.unit.team:
-            raise ValueError(
-                f"The unit {to_unit} isn't in the same team as self {self}"
-            )
+            return
         if to_unit.has_component(Component_movement):
             unit_component_movement: Component_movement = to_unit.get_component(
                 Component_movement
@@ -541,6 +585,37 @@ class Component_transport(Component):
             )
             self.component_material.change_material(-math.ceil(material_to_give))
 
+    @staticmethod
+    def set_state_to_auto_transport():
+        data.current_state = Component_transport.AUTO_TRANSPORT_STATE
+
+    def set_auto_transport(self):
+        from hex import Hex
+
+        if Hex.hex_cursor_is_on is None:
+            return
+        self.auto_transport_to = (Hex.hex_cursor_is_on.w, Hex.hex_cursor_is_on.h)
+        data.current_state = data.click_state.SELECT_UNIT
+
+    def after_load(self):
+        self.check_auto_transport()
+
+    def check_auto_transport(self):
+        if self.auto_transport_to is None:
+            return
+        from hex import Hex
+
+        hex_auto_transport: Hex = Hex.get_hex_by_wh(*self.auto_transport_to)
+        unit_auto_transport = hex_auto_transport.unit_on_hex
+        if unit_auto_transport is None:
+            return
+
+        self.transport_material(unit_auto_transport)
+
+    # TODO: add an arrow to where you auto transport stuff
+    def get_info(self):
+        return {Component_transport.AUTO_TRANSPORT: self.auto_transport_to}
+
 
 class Component_producer(Component):
     dependency = [Component_material]
@@ -554,7 +629,11 @@ class Component_producer(Component):
         material_per_turn = self.unit.get_type_info()[
             Component_producer.MATERIAL_PER_TURN
         ]
-        self.component_material.change_material(material_per_turn)
+        if (
+            self.component_material.material + material_per_turn
+            <= self.component_material.max_material
+        ):
+            self.component_material.change_material(material_per_turn)
 
 
 class Component_terain_requirements(Component):
@@ -579,11 +658,39 @@ class Component_terain_requirements(Component):
             )
 
 
+class Component_construction_site(Component):
+    UNIT_TO_BECOME = "unit to become"
+
+    def __init__(self, unit, info):
+        super().__init__(unit, info)
+        self.unit_to_become: str = info[Component_construction_site.UNIT_TO_BECOME]
+        self.unit_to_become_cost: int = unit_type[self.unit_to_become][COST]
+
+        self.material_component: Component_material = self.unit.get_component(
+            Component_material
+        )
+        if self.material_component.material >= self.unit_to_become_cost:
+            self.on_construction()
+            return
+
+        self.material_component.material_bar.max_value = (
+            self.material_component.max_material
+        ) = self.unit_to_become_cost
+
+    def on_construction(self):
+        self.unit.destroy()
+        Unit.from_name(self.unit.w, self.unit.h, self.unit_to_become, self.unit.team)
+
+    def get_info(self):
+        return {self.UNIT_TO_BECOME: self.unit_to_become}
+
+
 component_load_order = [
+    Component_material,
     Component_terain_requirements,
+    Component_construction_site,
     Component_pv,
     Component_vision,
-    Component_material,
     Component_fabricator,
     Component_producer,
     Component_transport,
@@ -601,8 +708,21 @@ USINE = "test usine"
 TRUCK = "test truck"
 MINER = "test miner"
 MOBILE_BUILDER = "mobile builder"
+CONSTRUCTION_SITE = "unfinished building"
+WAREHOUSE = "warehouse"
+
 
 unit_type = {
+    CONSTRUCTION_SITE: {
+        SURFACE: "road_barrier.png",
+        COMPONENTS: [
+            Component_construction_site,
+            Component_material,
+            Component_pv,
+        ],
+        Component_pv.MAX_PV: 10,
+        Component_material.MAX_MATERIAL: 10000,
+    },
     USINE: {
         SURFACE: "village.png",
         COMPONENTS: [
@@ -613,7 +733,7 @@ unit_type = {
             Component_fabricator,
         ],
         DESCRIPTION: "a basic usine to create most units",
-        COST: 40,
+        COST: 200,
         Component_vision.VIEW_RANGE: 5,
         Component_pv.MAX_PV: 10,
         Component_fabricator.CAN_CREATE_UNIT: [
@@ -624,6 +744,32 @@ unit_type = {
         Component_material.MAX_MATERIAL: 100,
         Component_transport.TRANSPORT_RANGE: 2,
     },
+    WAREHOUSE: {
+        SURFACE: "crates.png",
+        COMPONENTS: [Component_pv, Component_material, Component_transport],
+        Component_pv.MAX_PV: 10,
+        Component_material.MAX_MATERIAL: 100,
+        DESCRIPTION: "a small warehouse to store material",
+        COST: 10,
+        Component_transport.TRANSPORT_RANGE: 2,
+    },
+    MINER: {
+        SURFACE: "oil_rig.png",
+        COMPONENTS: [
+            Component_pv,
+            Component_material,
+            Component_transport,
+            Component_producer,
+            Component_terain_requirements,
+        ],
+        Component_pv.MAX_PV: 50,
+        Component_material.MAX_MATERIAL: 30,
+        Component_transport.TRANSPORT_RANGE: 2,
+        Component_producer.MATERIAL_PER_TURN: 10,
+        DESCRIPTION: "an oil rig that create materials each turn, can only be placed on oil fields",
+        COST: 50,
+        Component_terain_requirements.REQUIRED_TERRAIN: data.OIL,
+    },
     TANK: {
         SURFACE: "tank.png",
         COMPONENTS: [
@@ -633,7 +779,7 @@ unit_type = {
             Component_attack,
         ],
         DESCRIPTION: "a basic tank",
-        COST: 15,
+        COST: 80,
         Component_movement.MOVEMENT_POINT: 3,
         Component_movement.MAX_FUEL: 10,
         Component_vision.VIEW_RANGE: 4,
@@ -660,23 +806,6 @@ unit_type = {
         DESCRIPTION: "a basic truck to transport material",
         COST: 30,
     },
-    MINER: {
-        SURFACE: "oil_rig.png",
-        COMPONENTS: [
-            Component_pv,
-            Component_material,
-            Component_transport,
-            Component_producer,
-            Component_terain_requirements,
-        ],
-        Component_pv.MAX_PV: 30,
-        Component_material.MAX_MATERIAL: 30,
-        Component_transport.TRANSPORT_RANGE: 2,
-        Component_producer.MATERIAL_PER_TURN: 10,
-        DESCRIPTION: "a farm that create materials each turn, can only be placed on grass",
-        COST: 15,
-        Component_terain_requirements.REQUIRED_TERRAIN: data.OIL,
-    },
     MOBILE_BUILDER: {
         SURFACE: "truck_crane.png",
         COMPONENTS: [
@@ -688,15 +817,12 @@ unit_type = {
             Component_fabricator,
         ],
         Component_pv.MAX_PV: 10,
-        Component_material.MAX_MATERIAL: 50,
+        Component_material.MAX_MATERIAL: 20,
         Component_transport.TRANSPORT_RANGE: 2,
         Component_vision.VIEW_RANGE: 3,
         Component_movement.MOVEMENT_POINT: 5,
         Component_movement.MAX_FUEL: 20,
-        Component_fabricator.CAN_CREATE_UNIT: [
-            MINER,
-            USINE,
-        ],
+        Component_fabricator.CAN_CREATE_UNIT: [MINER, USINE, WAREHOUSE],
         DESCRIPTION: "a constructor to build buildings",
         COST: 20,
     },
@@ -799,9 +925,16 @@ class Unit:
     @classmethod
     def load_all_info(cls, info: dict[str, dict[str,]]):
         for unit_pos in info:
-            unit = info[unit_pos]
+            unit_info = info[unit_pos]
             unit_w, unit_h = pyg.string_to_wh(unit_pos)
-            Unit(unit_w, unit_h, unit)
+            Unit(unit_w, unit_h, unit_info)
+        for unit in Unit.all_units:
+            unit.after_load()
+
+    def after_load(self):
+        """function called after initisializatin of the units"""
+        for component in self.components.values():
+            component.after_load()
 
     def get_type_info(self):
         return unit_type[self.name]

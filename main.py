@@ -64,7 +64,6 @@ start_unit: list[dict[str, str]] = json.load(start_unit_file)
 
 def create_start_units():
     for unit_position in start_unit[get_number_of_player() - 1]:
-        print(unit_position)
         unit_name = start_unit[get_number_of_player() - 1][unit_position]
         w, h = pyg.string_to_wh(unit_position)
         unit.Unit.from_name(w, h, unit_name, team)

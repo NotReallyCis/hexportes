@@ -101,7 +101,6 @@ class Hex:
     def step_to_all_hex(cls):
         Hex.draw_all()
         Hex.hex_cursor_is_on = Hex.get_hex_by_xy(pyg.keyboard.mouse_position.xy)
-
         if Hex.hex_cursor_is_on is not None:
             Hex.hex_cursor_is_on.draw_surface_on_top(data.hex_mouse_on)
             Hex.draw_hex_position_indicator(Hex.hex_cursor_is_on)
@@ -239,13 +238,15 @@ class Hex:
         scaled_mask = Hex.hex_mask_no_zoom.scale(self.rect.size)
         return scaled_mask
 
+    def get_center(self):
+        return self.rect.center
+
     @classmethod
     def get_hex_by_wh(
         cls, w: int, h: int, return_None_if_outside: bool = False
-    ) -> "Hex":
+    ) -> Hex | None:
         """
         return_None_if_outside (bool, optional): Return None if the position is outside the world. Defaults to False.
-
         """
 
         if not Hex.is_wh_inside_border(w, h):
@@ -263,7 +264,7 @@ class Hex:
 
         if not Hex.is_wh_inside_border(w, h):
             return None
-        
+
         hex = Hex.get_hex_by_wh(w, h)
         if hex.is_position_in_hex(pos):
             return hex

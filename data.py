@@ -53,7 +53,7 @@ color_of_teams = {
 
 
 def get_all_colors():
-    output :list[str]= []
+    output: list[str] = []
     for color in color_of_teams:
         output.append(color_of_teams[color])
     return output
@@ -105,6 +105,8 @@ transport_button = load("assets/image/transport_button")
 fabricate_unit_background_button = load(
     "image/background_selected_unit_to_fabricate_button"
 )
+
+auto_transport_arrow = load("image/arrow")
 
 nine_sided_explanation = pyg.draw.Nine_sided_rect(
     pg.Color(255, 253, 245),
