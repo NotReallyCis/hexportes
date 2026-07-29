@@ -9,7 +9,7 @@ from hex import Hex
 screen = pg.display.set_mode((720, 500))
 pg.init()
 
-pyg.init_all_module(30, False)
+pyg.init_all_module(70, False)
 
 
 from data import OIL, BAREN, GREEN, WATER, ROCKY
@@ -72,7 +72,6 @@ class Unit:
             unit_team = data.all_colors.index(unit.color)
             unit_pos_str = pyg.wh_to_string(*unit_pos)
             all_info[unit_team][unit_pos_str] = unit.name
-        print(all_info)
         json.dump(all_info, open(Unit.unit_start_file, "w"))
 
 
