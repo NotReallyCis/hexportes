@@ -20,7 +20,7 @@ def vertical_camera_movement(direction: int):
 
 def zoom(is_unzoom: bool):
     global zoom_level, zoom_index
-    old_zoom = zoom_level
+    global_mouse_pos_old = keyboard.mouse_position / zoom_level
 
     if is_unzoom:
         if zoom_index >= (possibles_zoom.__len__() - 1):
@@ -31,36 +31,10 @@ def zoom(is_unzoom: bool):
             return
         zoom_index -= 1
     zoom_level = possibles_zoom[zoom_index]
-    zoomed_camera_rect: pg.Rect = camera.rect.copy()
-    if is_unzoom:
-        bottom_right = zoomed_camera_rect.bottomright
-        zoomed_camera_rect.scale_by_ip(zoom_level, zoom_level)
-        zoomed_camera_rect.topleft = bottom_right
-    else:
-        topleft = zoomed_camera_rect.topleft
-        zoomed_camera_rect.scale_by_ip(zoom_level, zoom_level)
-        zoomed_camera_rect.topleft = topleft
 
-    old_zoomed_camera_rect = camera.rect.copy()
-    if is_unzoom:
-        bottom_right = zoomed_camera_rect.bottomright
-        old_zoomed_camera_rect.scale_by_ip(old_zoom, old_zoom)
-        old_zoomed_camera_rect.topleft = bottom_right
-    else:
-        topleft = zoomed_camera_rect.topleft
-        old_zoomed_camera_rect.scale_by_ip(old_zoom, old_zoom)
-        old_zoomed_camera_rect.topleft = topleft
-
-    camera.rect.x -= (
-        keyboard.mouse_position.x
-        / camera.rect.width
-        * (old_zoomed_camera_rect.width - zoomed_camera_rect.width)
-    )
-    camera.rect.y -= (
-        keyboard.mouse_position.y
-        / camera.rect.height
-        * (old_zoomed_camera_rect.height - zoomed_camera_rect.height)
-    )
+    camera.rect.topleft = (
+        global_mouse_pos_old * zoom_level
+    ) - keyboard.true_mouse_position  # complicated af, don't touch this
 
 
 keyboard.on_mouswheel_scroll(zoom, False, False)
@@ -68,7 +42,6 @@ keyboard.on_mouswheel_scroll(zoom, True, True)
 
 
 def step():
-
     if keyboard.is_key_pressed("z"):
         vertical_camera_movement(-1)
     elif keyboard.is_key_pressed("s"):
