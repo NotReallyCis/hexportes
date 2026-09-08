@@ -187,11 +187,11 @@ def on_click():
         Hex.hex_cursor_is_on.change_type(type_selected)
         Hex.reset_maps_surface()
     else:
-        w,h=Hex.hex_cursor_is_on.w, Hex.hex_cursor_is_on.h
-        if Unit.all_unit.get((w,h)) is not None:
-            Unit
-
-        Unit(w,h, *unit_selected)
+        w, h = Hex.hex_cursor_is_on.w, Hex.hex_cursor_is_on.h
+        if Unit.all_unit.get((w, h)) is not None:
+            Unit.all_unit.pop(w, h)
+            return
+        Unit(w, h, *unit_selected)
 
 
 init()

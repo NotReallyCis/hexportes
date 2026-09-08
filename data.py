@@ -3,12 +3,14 @@ import pyg, warnings, json
 
 
 def get_all_image_in_folder(folder_str: str):
-    """the return format is a dict with filename (relative to the folder):image"""
+    """the return format is a dict with filename (relative to the folder):surface"""
     import os
 
     output: dict[str, pg.Surface] = {}
     folder = os.fsencode(folder_str)
-    for file in os.listdir(folder):
+    files_to_load = os.listdir(folder)
+    files_to_load.sort()
+    for file in files_to_load:
         file_name = os.fsdecode(file)
         output[file_name] = load(folder_str + "/" + file_name)
     return output
@@ -92,7 +94,13 @@ try:
     map = json.load(open("assets/map.json"))
 except json.decoder.JSONDecodeError:
     map = None
+
 fog = load("assets/hex_image/fog.png")
+
+if pg.display.get_active():
+    explosion_animated = pyg.Animated_sprite(
+        list(get_all_image_in_folder("assets/image/explosion").values()), 0.1
+    )
 
 hex_image = load("essentials-4xgames-tileset/base_rocky.png")
 """The default hex image for mask or other things"""

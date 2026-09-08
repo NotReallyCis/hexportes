@@ -1,6 +1,7 @@
 import pygame as pg
 import math, data, random
 from unit import Unit
+import unit
 import pyg
 import camera_movement
 
@@ -41,9 +42,9 @@ class Hex:
         data.OIL: {SURFACE: data.oil, WEIGHT: 1},
         data.GREEN: {SURFACE: data.green, WEIGHT: 1},
         data.ROCKY: {SURFACE: data.rocky, WEIGHT: 3},
-        data.WATER: {SURFACE: data.water, WEIGHT: 0},
+        data.WATER: {SURFACE: data.water, WEIGHT: -1},
     }
-    """If the weight is 0 then the tile is impassable"""
+    """If the weight is -1 then the tile is impassable"""
 
     def __init__(self, w: int, h: int, type: str):
         if type not in Hex.terrain_types:
@@ -55,11 +56,6 @@ class Hex:
         self.true_pos = self.pos
         """never changes"""
         self.change_type(type, False)
-
-        self.weight = Hex.terrain_types[type][Hex.WEIGHT]
-        """the amount of movement point needed"""
-        if self.weight == 0:
-            self.weight = 999  # a really high value
 
         self.unit_on_hex: Unit | None = None
 
@@ -241,6 +237,20 @@ class Hex:
     def get_center(self):
         return self.rect.center
 
+    def get_weight(self) -> int:
+        weight: int = Hex.terrain_types[self.type][self.WEIGHT]
+        if weight == -1 or self.unit_on_hex is None:
+            return weight
+
+        if self.unit_on_hex.has_component(unit.Component_weight_change):
+            component_weight_change: unit.Component_weight_change = (
+                self.unit_on_hex.get_component(unit.Component_weight_change)
+            )
+            weight += component_weight_change.weight_change
+            if weight < 0:
+                return 0
+        return weight
+
     @classmethod
     def get_hex_by_wh(
         cls, w: int, h: int, return_None_if_outside: bool = False
@@ -379,7 +389,9 @@ class Hex:
 
                 hex_around_weight: int = 1
                 if is_hex_weight_matter:
-                    hex_around_weight = hex_around.weight
+                    hex_around_weight = hex_around.get_weight()
+                    if hex_around_weight == -1:
+                        continue
                 movement_point_after_hex_around = movement_point - hex_around_weight
                 """number of movement point you have after going to the hex_around"""
                 if (

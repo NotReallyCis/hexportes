@@ -432,7 +432,7 @@ class camera:
             )
 
         if not isinstance(surface, pg.Surface):
-            raise ValueError(
+            raise TypeError(
                 f"The surface argument must be a surface, not {type(surface)}"
             )
 
@@ -489,22 +489,45 @@ class camera:
 class Animated_sprite:
     """create a gif like sprite"""
 
+    sprite_to_play: list[tuple[tuple[int, int], Animated_sprite]] = []
+
     def __init__(self, surfaces: list[pg.Surface], time_between_frames: float = 0.15):
         self.surfaces = surfaces
         self.tick = 0
+        self.time_between_frames = time_between_frames
         self.tick_between_frames = round(time_between_frames * fps)
 
     def render(self):
         """Return the actual surface and change the index by one"""
         surface = self.surfaces[self.tick // self.tick_between_frames]
+
         self.tick += 1
         if len(self.surfaces) * self.tick_between_frames <= self.tick:
             self.tick = 0
         return surface
 
     def get_surface(self):
-        """Return the actual surface, without changing the index by one"""
-        return self.surfaces[self.tick]
+        """Return the actual surface, without changing the index"""
+        return self.surfaces[self.tick // self.tick_between_frames]
+
+    def copy(self):
+        return Animated_sprite(self.surfaces, self.time_between_frames)
+
+    def play_at(self, pos: tuple[int, int]):
+        Animated_sprite.sprite_to_play.append((pos, self.copy()))
+
+    @classmethod
+    def step_all(cls):
+        for pos, sprite in Animated_sprite.sprite_to_play:
+            camera(sprite.render(), pos, -20)
+            if sprite.tick + 1 >= len(sprite.surfaces) * sprite.tick_between_frames:
+                Animated_sprite.sprite_to_play.remove((pos, sprite))
+
+    def is_last_tick(self):
+        return (
+            len(self.surfaces) * self.tick_between_frames
+            <= self.tick + self.tick_between_frames
+        )
 
 
 class Camera_effect:
@@ -987,7 +1010,7 @@ class Button:
         self.mask = pg.mask.from_surface(self.surface)
 
     def draw(self):
-        camera(self.surface, self.rect, -52, True)
+        camera(self.surface, self.rect, -2, True)
 
     @classmethod
     def step_all(cls):
@@ -1153,6 +1176,7 @@ def step_to_all_module():
     Profiler.step()
     Explain_bubble.step_all()
     Cooldown.step_all()
+    Animated_sprite.step_all()
 
     if Collision_object.is_init:
         Collision_object.step_all()

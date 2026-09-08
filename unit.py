@@ -38,6 +38,8 @@ class Bar:
     @value.setter
     def value(self, new_value: int):
         self._value = new_value
+        if new_value < 0:
+            raise ValueError(f"can't set a Bar value to negative ({new_value})")
 
     def get_surface(self, show_digits: bool = True):
         surface = draw.bar_percentage(
@@ -90,6 +92,10 @@ class Component(abc.ABC):
 
     def step(self):
         """called each tick"""
+        pass
+
+    @classmethod
+    def step_all(cls):
         pass
 
     def after_load(self):
@@ -227,14 +233,16 @@ class Component_attack(Component):
     attack_button = data.attack_button
     hex_can_attack = data.hex_can_attack
 
+    explosion_to_animate: dict[Hex, pyg.Animated_sprite] = {}
+
     def __init__(self, unit, info: dict[str]):
         super().__init__(unit, info)
         self.damage = int(unit.get_type_info()[self.DAMAGE])
         self.max_ammo = unit.get_type_info()[self.MAX_AMMO]
-        self.ammo = info.get(self.AMMO, self.max_ammo)
         self.attack_range = unit.get_type_info()[self.RANGE]
 
-        self.ammo_bar = Bar("red", self.max_ammo, self.ammo)
+        ammo = info.get(self.AMMO, self.max_ammo)
+        self.ammo_bar = Bar("red", self.max_ammo, ammo)
         self.has_not_attacked = True
 
         self.add_bar(self.ammo_bar)
@@ -248,20 +256,42 @@ class Component_attack(Component):
     def attack_tile(self, hex: Hex):
         if hex not in self.get_attackable_hexs():
             return
-
-        unit = hex.unit_on_hex
-        if (
-            (unit is None)
-            or (unit.team == self.unit.team)
-            or (not unit.has_component(Component_pv))
-            or not self.has_not_attacked
-        ):
+        if not self.has_not_attacked or self.ammo_bar.value == 0:
             return
+        if hex.is_visible:
+            unit = hex.unit_on_hex
+            if (
+                (unit is None)
+                or (unit.team == self.unit.team)
+                or (not unit.has_component(Component_pv))
+            ):
+                return
 
+            pv_component: Component_pv = unit.get_component(Component_pv)
+            pv_component.damage(self.damage)
         self.ammo_bar.value -= 1
-        pv_component: Component_pv = unit.get_component(Component_pv)
-        pv_component.damage(self.damage)
         self.has_not_attacked = False
+
+        Component_attack.explosion_to_animate[hex] = data.explosion_animated.copy()
+
+    @classmethod
+    def step_all(cls):
+        explosion_to_animate = (
+            Component_attack.explosion_to_animate.copy()
+        )  # avoid side effect
+        for explosion_hex in explosion_to_animate:
+            explosion_sprite = explosion_to_animate[explosion_hex]
+            explosion = pg.transform.scale_by(
+                explosion_sprite.render(), camera_movement.zoom_level
+            )
+            camera(
+                explosion,
+                explosion_hex.get_center(),
+                -20,
+                is_position_the_center=True,
+            )
+            if explosion_sprite.is_last_tick():
+                Component_attack.explosion_to_animate.pop(explosion_hex)
 
     def step(self):
         if self.unit.is_selected and self.has_not_attacked:
@@ -271,7 +301,10 @@ class Component_attack(Component):
     def get_attackable_hexs(self):
         attackable_hexs: list[Hex] = []
         for hex in self.unit.get_hex().search_hex(self.attack_range, False, False):
-            if hex.unit_on_hex is None or hex.unit_on_hex.team == self.unit.team:
+
+            if hex.is_visible and (
+                hex.unit_on_hex is None or hex.unit_on_hex.team == self.unit.team
+            ):
                 continue
             attackable_hexs.append(hex)
         return attackable_hexs
@@ -279,6 +312,9 @@ class Component_attack(Component):
     def draw_attackable_hexs(self):
         for hex in self.get_attackable_hexs():
             hex.draw_surface_on_top(Component_attack.hex_can_attack)
+
+    def get_info(self):
+        return {Component_attack.AMMO: self.ammo_bar.value}
 
 
 class Component_pv(Component):
@@ -498,8 +534,7 @@ class Component_transport(Component):
 
         mid_point = auto_transport_vector / 2
         mid_point += center_hex
-        print(mid_point, arrow_surface.get_size())
-        pyg.camera(arrow_surface, mid_point, -1, False, True)
+        pyg.camera(arrow_surface, mid_point, -10, False, True)
 
     def step(self):
         if self.unit.is_selected:
@@ -558,10 +593,9 @@ class Component_transport(Component):
             ammo_to_give = min(
                 self.component_material.material
                 * Component_transport.material_to_ammo_conversion,
-                (unit_component_attack.max_ammo - unit_component_attack.ammo),
+                (unit_component_attack.max_ammo - unit_component_attack.ammo_bar.value),
             )
-            unit_component_attack.ammo += ammo_to_give
-            unit_component_attack.ammo_bar.value = unit_component_attack.ammo
+            unit_component_attack.ammo_bar.value += ammo_to_give
             self.component_material.change_material(
                 -math.ceil(
                     ammo_to_give / Component_transport.material_to_ammo_conversion
@@ -612,7 +646,6 @@ class Component_transport(Component):
 
         self.transport_material(unit_auto_transport)
 
-    # TODO: add an arrow to where you auto transport stuff
     def get_info(self):
         return {Component_transport.AUTO_TRANSPORT: self.auto_transport_to}
 
@@ -658,6 +691,14 @@ class Component_terain_requirements(Component):
             )
 
 
+class Component_weight_change(Component):
+    TERRAIN_WEIGHT_ADD = "terrain weight add"
+
+    def __init__(self, unit, info):
+        super().__init__(unit, info)
+        self.weight_change: int = self.unit.get_type_info()[self.TERRAIN_WEIGHT_ADD]
+
+
 class Component_construction_site(Component):
     UNIT_TO_BECOME = "unit to become"
 
@@ -685,9 +726,10 @@ class Component_construction_site(Component):
         return {self.UNIT_TO_BECOME: self.unit_to_become}
 
 
-component_load_order = [
+component_load_order: list[type[Component]] = [
     Component_material,
     Component_terain_requirements,
+    Component_weight_change,
     Component_construction_site,
     Component_pv,
     Component_vision,
@@ -710,7 +752,8 @@ MINER = "test miner"
 MOBILE_BUILDER = "mobile builder"
 CONSTRUCTION_SITE = "unfinished building"
 WAREHOUSE = "warehouse"
-
+CANNON = "cannon"
+BARBED_WIRE = "barbed wire"
 
 unit_type = {
     CONSTRUCTION_SITE: {
@@ -770,6 +813,21 @@ unit_type = {
         COST: 50,
         Component_terain_requirements.REQUIRED_TERRAIN: data.OIL,
     },
+    CANNON: {
+        SURFACE: "cannon.png",
+        COMPONENTS: [
+            Component_pv,
+            Component_vision,
+            Component_attack,
+        ],
+        DESCRIPTION: "a fragile but deadly cannon tank",
+        COST: 70,
+        Component_vision.VIEW_RANGE: 2,
+        Component_pv.MAX_PV: 5,
+        Component_attack.DAMAGE: 20,
+        Component_attack.MAX_AMMO: 5,
+        Component_attack.RANGE: 7,
+    },
     TANK: {
         SURFACE: "tank.png",
         COMPONENTS: [
@@ -778,14 +836,14 @@ unit_type = {
             Component_vision,
             Component_attack,
         ],
-        DESCRIPTION: "a basic tank",
+        DESCRIPTION: "a slow tank",
         COST: 80,
         Component_movement.MOVEMENT_POINT: 3,
-        Component_movement.MAX_FUEL: 10,
+        Component_movement.MAX_FUEL: 7,
         Component_vision.VIEW_RANGE: 4,
         Component_pv.MAX_PV: 20,
         Component_attack.DAMAGE: 5,
-        Component_attack.MAX_AMMO: 20,
+        Component_attack.MAX_AMMO: 8,
         Component_attack.RANGE: 5,
     },
     TRUCK: {
@@ -816,15 +874,32 @@ unit_type = {
             Component_transport,
             Component_fabricator,
         ],
+        DESCRIPTION: "a constructor to build buildings",
+        COST: 20,
         Component_pv.MAX_PV: 10,
         Component_material.MAX_MATERIAL: 20,
         Component_transport.TRANSPORT_RANGE: 2,
         Component_vision.VIEW_RANGE: 3,
         Component_movement.MOVEMENT_POINT: 5,
         Component_movement.MAX_FUEL: 20,
-        Component_fabricator.CAN_CREATE_UNIT: [MINER, USINE, WAREHOUSE],
-        DESCRIPTION: "a constructor to build buildings",
-        COST: 20,
+        Component_fabricator.CAN_CREATE_UNIT: [
+            MINER,
+            USINE,
+            WAREHOUSE,
+            CANNON,
+            BARBED_WIRE,
+        ],
+    },
+    BARBED_WIRE: {
+        SURFACE: "barbed wire.png",
+        COMPONENTS: [
+            Component_pv,
+            Component_weight_change,
+        ],
+        DESCRIPTION: "some barbed wires to slow things down",
+        COST: 5,
+        Component_pv.MAX_PV: 10,
+        Component_weight_change.TERRAIN_WEIGHT_ADD: +2,
     },
 }
 
@@ -983,6 +1058,8 @@ class Unit:
     def step_all_units(cls):
         for unit in Unit.all_units:
             unit.step()
+        for component in component_load_order:
+            component.step_all()
 
     def draw(self):
         self.get_hex().draw_surface_on_top(self.surface)

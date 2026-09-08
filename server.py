@@ -79,7 +79,7 @@ class Client:
 
         if message is None:
             self.disconnect()
-            return None  # important to return something or the rest will run one more time before stopping
+            return  # important to return something or the rest will run one more time before stopping
 
         print("the message from:", self.__str__(), " ,is:", message)
 
